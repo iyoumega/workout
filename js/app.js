@@ -18,12 +18,44 @@
       bindTabs();
       bindStorageWarning();
       checkCapacity();
+      maybeShowA2HS();
     } catch (e) {
       console.error('boot failed', e);
       UI.toast('启动出错,请刷新', { type: 'error' });
     } finally {
       hideSplash();
     }
+  }
+
+  // 添加到主屏幕(iOS)提示 — 仅在 iOS Safari、未 standalone、未关闭过提示时显示
+  async function maybeShowA2HS() {
+    const settings = await Storage.getSettings();
+    if (settings.a2hsDismissed) return;
+    const isStandalone = window.navigator.standalone === true ||
+      window.matchMedia('(display-mode: standalone)').matches;
+    if (isStandalone) return;
+    const ua = navigator.userAgent;
+    const isIOSSafari = /iPhone|iPad|iPod/.test(ua) && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+    if (!isIOSSafari) return;
+
+    setTimeout(() => {
+      const banner = document.createElement('div');
+      banner.className = 'a2hs-banner';
+      banner.innerHTML = `
+        <div class="a2hs-text">
+          <strong>添加到主屏幕</strong>
+          <div class="text-xs text-dim">点 <span style="display:inline-block;vertical-align:middle">↑</span> 然后选"添加到主屏幕",像 App 一样使用</div>
+        </div>
+        <button class="btn btn-icon" data-act="dismiss-a2hs"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+      `;
+      document.body.appendChild(banner);
+      requestAnimationFrame(() => banner.classList.add('show'));
+      banner.querySelector('[data-act="dismiss-a2hs"]').addEventListener('click', async () => {
+        banner.classList.remove('show');
+        setTimeout(() => banner.remove(), 250);
+        await Storage.saveSettings({ a2hsDismissed: true });
+      });
+    }, 4000);
   }
 
   function hideSplash() {

@@ -1,9 +1,9 @@
 /**
- * Today view — renders today's workout.
+ * Today view — renders today's workout. Entry to Workout Mode.
  */
 (function (global) {
   let timerState = { remaining: 0, total: 90, intervalId: null, paused: false };
-  const TIMER_RING_CIRCUMFERENCE = 2 * Math.PI * 54; // ~339.292
+  const TIMER_RING_CIRCUMFERENCE = 2 * Math.PI * 54;
 
   function root() { return document.getElementById('view-today'); }
 
@@ -64,8 +64,45 @@
       return;
     }
 
+    const completed = day.exercises.filter(e => completedSet.has(e.id)).length;
+    const total = day.exercises.length;
+    const allDone = completed === total && total > 0;
+    const pct = total ? (completed / total) * 100 : 0;
+    const alreadyFinished = !!log.completedAt;
+    const partiallyStarted = (log.completedExercises || []).some(e => e.sets && e.sets.length > 0) && !alreadyFinished;
+
+    // Hero block: "开始训练" / "继续训练" / "今日已完成"
+    let heroBlock = '';
+    if (alreadyFinished) {
+      const totalSets = (log.completedExercises || []).reduce((s, e) => s + (e.sets ? e.sets.length : 0), 0);
+      const dur = log.durationSec ? formatDuration(log.durationSec) : '';
+      heroBlock = `
+        <div class="today-hero done">
+          <div class="today-hero-icon"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></div>
+          <div class="flex-1">
+            <div class="fw-600">今日训练已完成</div>
+            <div class="text-xs text-dim">${dur} · ${totalSets} 组 · 干得漂亮</div>
+          </div>
+        </div>
+      `;
+    } else {
+      heroBlock = `
+        <button class="today-hero-btn" id="start-workout">
+          <div class="today-hero-text">
+            <div class="today-hero-label">${partiallyStarted ? '继续训练' : '开始训练'}</div>
+            <div class="today-hero-sub">${total} 个动作 · 预计 ${estimateDuration(day)} 分钟</div>
+          </div>
+          <div class="today-hero-icon-r">
+            <svg viewBox="0 0 24 24"><use href="#i-play"/></svg>
+          </div>
+        </button>
+      `;
+    }
+
     const exercisesHtml = day.exercises.map((ex, idx) => {
-      const done = completedSet.has(ex.id);
+      const exLog = (log.completedExercises || []).find(e => e.id === ex.id);
+      const setsLogged = exLog ? (exLog.sets || []).length : 0;
+      const done = completedSet.has(ex.id) || setsLogged >= ex.sets;
       return `
         <div class="card exercise-card ${done?'done':''}" data-ex-id="${ex.id}">
           <div class="card-row">
@@ -83,6 +120,16 @@
             <div class="exercise-meta-item"><strong>${ex.reps}</strong>次</div>
             <div class="exercise-meta-item">休息<strong style="margin-left:4px">${ex.restSec}</strong>s</div>
           </div>
+          ${setsLogged > 0 ? `
+            <div class="w-history-strip mt-8">
+              ${(exLog.sets || []).map((s, i) => `
+                <div class="w-history-pill small">
+                  <span class="text-xs text-faint">#${i+1}</span>
+                  ${s.weight ? `<strong>${s.weight}kg</strong>` : ''}
+                  <span>×${s.reps}</span>
+                </div>
+              `).join('')}
+            </div>` : ''}
           <div class="exercise-toggle" data-toggle="${ex.id}">
             <svg viewBox="0 0 24 24"><use href="#i-chev"/></svg> 动作要点
           </div>
@@ -104,12 +151,6 @@
       `;
     }).join('');
 
-    const completed = day.exercises.filter(e => completedSet.has(e.id)).length;
-    const total = day.exercises.length;
-    const allDone = completed === total && total > 0;
-    const pct = total ? (completed / total) * 100 : 0;
-    const alreadyFinished = !!log.completedAt;
-
     root().innerHTML = `
       <div class="today-header">
         <div>
@@ -122,21 +163,21 @@
           </div>
         </div>
       </div>
+      ${heroBlock}
       <div class="day-progress">
         <div class="progress"><div class="progress-bar" style="width:${pct}%"></div></div>
       </div>
       ${exercisesHtml}
       ${nutritionCard(day.nutrition)}
-      <div class="finish-bar">
-        <button class="btn btn-primary btn-block" id="finish-day" ${allDone && !alreadyFinished ? '' : 'disabled'}>
-          ${alreadyFinished
-            ? '<svg viewBox="0 0 24 24"><use href="#i-check"/></svg>今日训练已完成'
-            : (allDone ? '<svg viewBox="0 0 24 24"><use href="#i-check"/></svg>完成今日训练' : '勾选所有动作后完成')}
-        </button>
-      </div>
+      ${!alreadyFinished ? `
+        <div class="finish-bar">
+          <button class="btn btn-secondary btn-block" id="finish-day" ${allDone ? '' : 'disabled'}>
+            ${allDone ? '<svg viewBox="0 0 24 24"><use href="#i-check"/></svg>标记今日完成' : '勾选所有动作后完成'}
+          </button>
+        </div>` : ''}
     `;
 
-    bindEvents(day, log);
+    bindEvents(day, log, plan);
   }
 
   function nutritionCard(nutrition) {
@@ -169,8 +210,22 @@
     `;
   }
 
-  function bindEvents(day, log) {
+  function bindEvents(day, log, plan) {
     const todayKey = Planner.toDateKey(new Date());
+
+    document.getElementById('start-workout')?.addEventListener('click', () => {
+      WorkoutMode.start(day, log, {
+        onFinish: async (finishedLog) => {
+          // 重新渲染本视图
+          await render();
+          // 如果完成了全部,显示庆祝并触发新成就提示
+          if (finishedLog.completedAt) {
+            const totalSets = (finishedLog.completedExercises || []).reduce((s, e) => s + (e.sets ? e.sets.length : 0), 0);
+            UI.celebrate(`${day.title} · ${totalSets} 组 · 干得漂亮`);
+          }
+        },
+      });
+    });
 
     root().querySelectorAll('[data-act="toggle"]').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -178,7 +233,12 @@
         const set = new Set((log.completedExercises || []).map(e => typeof e === 'string' ? e : e.id));
         const wasDone = set.has(id);
         if (wasDone) set.delete(id); else set.add(id);
-        log.completedExercises = [...set].map(eid => ({ id: eid, done: true, sets: [] }));
+        // 保留 sets 数据
+        const map = new Map((log.completedExercises || []).map(e => [e.id, e]));
+        log.completedExercises = [...set].map(eid => {
+          const existing = map.get(eid);
+          return existing ? existing : { id: eid, done: true, sets: [] };
+        });
         log.updatedAt = new Date().toISOString();
         await Storage.saveLog(todayKey, log);
         if (!wasDone) {
@@ -214,16 +274,51 @@
       finishBtn.addEventListener('click', async () => {
         log.completedAt = new Date().toISOString();
         await Storage.saveLog(todayKey, log);
-        // celebration
-        const exCount = day.exercises.length;
-        UI.celebrate(`${day.title} · ${exCount} 个动作 · 干得漂亮`);
-        // 重渲染以显示已完成状态
+        // 检查新成就
+        const logs = await Storage.listLogs();
+        const settings = await Storage.getSettings();
+        const result = Achievements.compute(logs, plan);
+        const earnedIds = result.earned.map(a => a.id);
+        const newOnes = Achievements.diff(settings.achievements || [], earnedIds);
+        await Storage.saveSettings({ achievements: earnedIds });
+
+        const subText = `${day.title} · ${day.exercises.length} 个动作`;
+        UI.celebrate(subText);
+
+        if (newOnes.length) {
+          setTimeout(() => {
+            UI.toast(`新成就:${newOnes[0].title}`, { type: 'success', icon: 'i-trophy', ttl: 3000 });
+          }, 800);
+        }
+
         setTimeout(() => render(), 600);
       });
     }
   }
 
-  // ===== Timer =====
+  function estimateDuration(day) {
+    let secs = 0;
+    day.exercises.forEach(ex => {
+      const repsLow = parseRepsLow(ex.reps);
+      // 每组 ~ (repsLow * 3 秒动作) + restSec 休息
+      secs += ex.sets * (repsLow * 3 + ex.restSec);
+    });
+    return Math.round(secs / 60);
+  }
+
+  function parseRepsLow(repsStr) {
+    if (!repsStr) return 8;
+    const m = String(repsStr).match(/(\d+)/);
+    return m ? Number(m[1]) : 8;
+  }
+
+  function formatDuration(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  // ===== 单独的休息计时(从动作卡上的小时钟按钮触发) =====
   function startTimer(seconds) {
     timerState.total = seconds;
     timerState.remaining = seconds;

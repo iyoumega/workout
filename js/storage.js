@@ -3,7 +3,8 @@
  * Replace internals with Supabase later; keep method signatures stable.
  *
  * Keys (all prefixed with `workout:`):
- *   profile, photos, plan, settings, log:<YYYY-MM-DD>
+ *   profile, photos, plan, settings, weights,
+ *   log:<YYYY-MM-DD>
  */
 (function (global) {
   const PREFIX = 'workout:';
@@ -91,10 +92,41 @@
       return out;
     },
 
+    // ---------- weights (body weight time series) ----------
+    async getWeights() {
+      const v = await readJSON(k('weights'));
+      return v || { entries: [] };
+    },
+    async addWeight(kg, dateKey) {
+      const data = await this.getWeights();
+      const date = dateKey || new Date().toISOString().slice(0, 10);
+      // 同一天覆盖最新值
+      data.entries = data.entries.filter(e => e.date !== date);
+      data.entries.push({ date, kg: Number(kg), at: new Date().toISOString() });
+      data.entries.sort((a, b) => a.date.localeCompare(b.date));
+      await writeJSON(k('weights'), data);
+      return data;
+    },
+    async removeWeight(dateKey) {
+      const data = await this.getWeights();
+      data.entries = data.entries.filter(e => e.date !== dateKey);
+      await writeJSON(k('weights'), data);
+      return data;
+    },
+
     // ---------- settings ----------
     async getSettings() {
       const v = await readJSON(k('settings'));
-      return v || { onboarded: false, theme: 'dark', unit: 'metric' };
+      return {
+        onboarded: false,
+        theme: 'dark',
+        unit: 'metric',
+        sound: true,
+        vibration: true,
+        weekStart: 1,           // 1 = Monday
+        achievements: [],       // earned achievement ids
+        ...(v || {}),
+      };
     },
     async saveSettings(s) {
       const cur = await this.getSettings();
