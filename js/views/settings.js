@@ -8,6 +8,8 @@
   async function open() {
     const s = await Storage.getSettings();
 
+    const coachName = s.coachName || '小橙';
+    const coachTone = s.coachTone || 'friendly';
     UI.showModal(`
       <div class="sheet">
         <div class="sheet-header">
@@ -15,7 +17,22 @@
           <button class="btn btn-icon" data-act="close"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
         </div>
         <div class="sheet-body">
-          <div class="section-title" style="margin-top:0">通知与反馈</div>
+          <div class="section-title" style="margin-top:0">教练</div>
+          <div class="setting-row column-stack">
+            <span class="label">教练昵称</span>
+            <input class="setting-input" type="text" data-key="coachName" maxlength="10" placeholder="小橙" value="${coachName.replace(/"/g,'&quot;')}" />
+          </div>
+          <div class="setting-row column-stack">
+            <span class="label">教练语气</span>
+            <div class="seg-control" data-key="coachTone">
+              <button data-value="friendly" class="${coachTone==='friendly'?'active':''}">亲和</button>
+              <button data-value="strict" class="${coachTone==='strict'?'active':''}">严师</button>
+              <button data-value="playful" class="${coachTone==='playful'?'active':''}">俏皮</button>
+              <button data-value="gentle" class="${coachTone==='gentle'?'active':''}">温柔</button>
+            </div>
+          </div>
+
+          <div class="section-title">通知与反馈</div>
           <div class="setting-row">
             <span class="label">提示音</span>
             <label class="switch">
@@ -89,6 +106,14 @@
       modal.querySelectorAll('input[type=checkbox][data-key-invert]').forEach(input => {
         input.addEventListener('change', async () => {
           await Storage.saveSettings({ [input.dataset.keyInvert]: !input.checked });
+          UI.toast('已保存', { type: 'success', icon: 'i-check', ttl: 1200 });
+        });
+      });
+      // text inputs (debounced save on blur)
+      modal.querySelectorAll('input[type=text][data-key]').forEach(input => {
+        input.addEventListener('blur', async () => {
+          const val = input.value.trim() || '小橙';
+          await Storage.saveSettings({ [input.dataset.key]: val });
           UI.toast('已保存', { type: 'success', icon: 'i-check', ttl: 1200 });
         });
       });

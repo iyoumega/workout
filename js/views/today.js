@@ -99,6 +99,31 @@
       `;
     }
 
+    const moodForToday = log.mood || null;
+    const moodBlock = !alreadyFinished ? `
+      <div class="mood-block">
+        <div class="mood-prompt">${moodForToday ? '今天感觉:' : '今天感觉怎么样?'}</div>
+        <div class="mood-options">
+          <button class="mood-opt ${moodForToday==='great'?'selected':''}" data-mood="great">
+            <svg viewBox="0 0 24 24"><use href="#i-mood-great"/></svg><span>状态好</span>
+          </button>
+          <button class="mood-opt ${moodForToday==='ok'?'selected':''}" data-mood="ok">
+            <svg viewBox="0 0 24 24"><use href="#i-mood-ok"/></svg><span>一般</span>
+          </button>
+          <button class="mood-opt ${moodForToday==='tired'?'selected':''}" data-mood="tired">
+            <svg viewBox="0 0 24 24"><use href="#i-mood-low"/></svg><span>疲惫</span>
+          </button>
+          <button class="mood-opt ${moodForToday==='sore'?'selected':''}" data-mood="sore">
+            <svg viewBox="0 0 24 24"><use href="#i-mood-low"/></svg><span>酸痛</span>
+          </button>
+          <button class="mood-opt ${moodForToday==='low'?'selected':''}" data-mood="low">
+            <svg viewBox="0 0 24 24"><use href="#i-mood-low"/></svg><span>低落</span>
+          </button>
+        </div>
+        ${log.moodAdvice ? `<div class="mood-advice"><strong>${log.moodAdvice.coach||'教练'}:</strong>${log.moodAdvice.text}</div>` : ''}
+      </div>
+    ` : '';
+
     const exercisesHtml = day.exercises.map((ex, idx) => {
       const exLog = (log.completedExercises || []).find(e => e.id === ex.id);
       const setsLogged = exLog ? (exLog.sets || []).length : 0;
@@ -142,8 +167,11 @@
             <ul>${ex.tips.map(t => `<li>${t}</li>`).join('')}</ul>
           </div>
           <div class="exercise-actions">
-            <button class="btn btn-icon" data-act="rest" data-rest="${ex.restSec}" title="开始休息">
-              <svg viewBox="0 0 24 24"><use href="#i-clock"/></svg>
+            <button class="btn btn-icon" data-act="swap" data-id="${ex.id}" title="换一个">
+              <svg viewBox="0 0 24 24"><use href="#i-swap"/></svg>
+            </button>
+            <button class="btn btn-icon" data-act="note" data-id="${ex.id}" title="备注">
+              <svg viewBox="0 0 24 24"><use href="#i-note"/></svg>
             </button>
             <button class="btn btn-icon" data-act="bili" data-name="${ex.nameZh}" title="看示范">
               <svg viewBox="0 0 24 24"><use href="#i-link"/></svg>
@@ -169,6 +197,8 @@
         </div>
       </div>
       ${heroBlock}
+      ${moodBlock}
+      ${bodyMapBlock(day)}
       <div id="ai-tip-slot"></div>
       <div class="day-progress">
         <div class="progress"><div class="progress-bar" style="width:${pct}%"></div></div>
@@ -185,6 +215,83 @@
 
     bindEvents(day, log, plan);
     renderAITip(profile, todayKey);
+    maybeOfferAdaptation(plan, profile, todayKey);
+  }
+
+  // 检查昨天有未完成训练日,如果有则提示是否将其顺移
+  async function maybeOfferAdaptation(plan, profile, todayKey) {
+    if (!plan) return;
+    const settings = await Storage.getSettings();
+    if (settings.adaptDismissedFor === todayKey) return;
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yKey = Planner.toDateKey(yesterday);
+    const yDay = Planner.getDayByDate(plan, yKey);
+    if (!yDay || yDay.type === 'rest') return;
+    const yLog = await Storage.getLog(yKey);
+    if (yLog && yLog.completedAt) return;
+    // 有未完成训练日
+
+    // 找未来 3 天里的休息日,询问是否把昨天的搬到那里
+    let restDay = null;
+    for (let i = 0; i < 4; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      const k = Planner.toDateKey(d);
+      const day = Planner.getDayByDate(plan, k);
+      if (day && day.type === 'rest') { restDay = day; break; }
+    }
+    if (!restDay) return;
+
+    // 显示一次性提示
+    const slot = document.getElementById('ai-tip-slot');
+    if (!slot) return;
+    const card = document.createElement('div');
+    card.className = 'card adapt-card';
+    card.innerHTML = `
+      <div class="row gap mb-8">
+        <svg viewBox="0 0 24 24" width="16" height="16" style="color:var(--accent); flex:0 0 16px"><use href="#i-refresh"/></svg>
+        <strong>昨天的训练没完成</strong>
+      </div>
+      <div class="text-sm text-dim mb-12">把"${yDay.title}"挪到 ${restDay.date}(原本休息日)?</div>
+      <div class="row gap">
+        <button class="btn btn-sm btn-secondary flex-1" data-adapt="dismiss">这周就算了</button>
+        <button class="btn btn-sm btn-primary flex-1" data-adapt="apply">挪一下</button>
+      </div>
+    `;
+    slot.appendChild(card);
+    card.querySelector('[data-adapt="dismiss"]').addEventListener('click', async () => {
+      await Storage.saveSettings({ adaptDismissedFor: todayKey });
+      card.remove();
+    });
+    card.querySelector('[data-adapt="apply"]').addEventListener('click', async () => {
+      const yIdx = plan.days.findIndex(d => d.date === yKey);
+      const rIdx = plan.days.findIndex(d => d.date === restDay.date);
+      if (yIdx === -1 || rIdx === -1) return;
+      // 交换 type / title / exercises / nutrition (保留 date 不变)
+      const tmp = {
+        type: plan.days[yIdx].type,
+        title: plan.days[yIdx].title,
+        exercises: plan.days[yIdx].exercises,
+        nutrition: plan.days[yIdx].nutrition,
+      };
+      plan.days[yIdx].type = 'rest';
+      plan.days[yIdx].title = Planner.TYPE_TITLES.rest;
+      plan.days[yIdx].exercises = [];
+      // 营养调整为休息日
+      plan.days[yIdx].nutrition = Nutrition.calcMacros(profile, false);
+
+      plan.days[rIdx].type = tmp.type;
+      plan.days[rIdx].title = tmp.title;
+      plan.days[rIdx].exercises = tmp.exercises;
+      plan.days[rIdx].nutrition = Nutrition.calcMacros(profile, true);
+
+      await Storage.savePlan(plan);
+      await Storage.saveSettings({ adaptDismissedFor: todayKey });
+      UI.toast('计划已调整', { type: 'success', icon: 'i-check' });
+      render();
+    });
   }
 
   // 显示 AI 教练点评卡;每天最多调一次 API,缓存在 settings.aiTip
@@ -260,6 +367,18 @@
         btn.disabled = false;
       }
     });
+  }
+
+  function bodyMapBlock(day) {
+    const muscles = new Set();
+    (day.exercises || []).forEach(e => (e.muscles || []).forEach(() => {}));
+    // 用 muscleKeys 而不是中文 muscles
+    (day.exercises || []).forEach(e => {
+      const def = ExerciseLib.findById(e.id);
+      if (def) (def.muscleKeys || []).forEach(k => muscles.add(k));
+    });
+    if (muscles.size === 0) return '';
+    return BodyMap.render([...muscles]);
   }
 
   function nutritionCard(nutrition) {
@@ -339,6 +458,41 @@
 
     root().querySelectorAll('[data-act="rest"]').forEach(btn => {
       btn.addEventListener('click', () => startTimer(Number(btn.dataset.rest)));
+    });
+
+    // 心情打卡
+    root().querySelectorAll('[data-mood]').forEach(b => {
+      b.addEventListener('click', async () => {
+        const mood = b.dataset.mood;
+        const wasMood = log.mood;
+        log.mood = mood;
+        await Storage.saveLog(todayKey, log);
+        if (mood !== wasMood) {
+          // 调 AI 给建议
+          try {
+            const profile = await Storage.getProfile();
+            const closeLoading = UI.showLoading(`${(await AIPlanner.getCoachIdentity()).name}思考中...`);
+            const advice = await AIPlanner.moodAdvice(profile, day, mood);
+            const coach = await AIPlanner.getCoachIdentity();
+            log.moodAdvice = { mood, text: advice.text, coach: coach.name, at: new Date().toISOString() };
+            await Storage.saveLog(todayKey, log);
+            closeLoading();
+          } catch (e) {
+            // ignore
+          }
+        }
+        render();
+      });
+    });
+
+    // 换一个动作
+    root().querySelectorAll('[data-act="swap"]').forEach(btn => {
+      btn.addEventListener('click', () => openSwapPicker(btn.dataset.id, day, log, todayKey));
+    });
+
+    // 备注
+    root().querySelectorAll('[data-act="note"]').forEach(btn => {
+      btn.addEventListener('click', () => openExerciseNote(btn.dataset.id, log, todayKey));
     });
 
     root().querySelectorAll('[data-toggle]').forEach(t => {
@@ -481,6 +635,118 @@
   function formatDateLabel(d) {
     const dows = ['周日','周一','周二','周三','周四','周五','周六'];
     return `${d.getMonth()+1}月${d.getDate()}日 · ${dows[d.getDay()]}`;
+  }
+
+  // ---------- 动作替换 ----------
+  async function openSwapPicker(exId, day, log, todayKey) {
+    const profile = await Storage.getProfile();
+    const alts = ExerciseLib.alternatives(exId, profile.venue);
+    const current = ExerciseLib.findById(exId);
+
+    if (alts.length === 0) {
+      UI.toast('没有合适的替代动作', { type: 'error' });
+      return;
+    }
+
+    UI.showModal(`
+      <div class="sheet">
+        <div class="sheet-header">
+          <h2 style="margin:0">换一个动作</h2>
+          <button class="btn btn-icon" data-act="close"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="sheet-body">
+          <div class="text-dim text-sm mb-12">把 <strong>${current.nameZh}</strong> 换成同肌群的:</div>
+          ${alts.map(a => {
+            const w = WeightRef.suggest(a.id, profile);
+            return `
+              <div class="card swap-option" data-pick="${a.id}">
+                <div class="card-row">
+                  <div>
+                    <div class="fw-600">${a.nameZh}</div>
+                    <div class="text-xs text-dim">${(a.muscles||[]).join(' · ')}</div>
+                  </div>
+                  ${w != null ? `<div class="text-sm" style="color:var(--accent); font-weight:600">${WeightRef.format(w, a.id)}</div>` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `, (modal, close) => {
+      modal.querySelector('[data-act="close"]').addEventListener('click', close);
+      modal.addEventListener('click', e => { if (e.target === modal) close(); });
+      modal.querySelectorAll('[data-pick]').forEach(opt => {
+        opt.addEventListener('click', async () => {
+          const newId = opt.dataset.pick;
+          const newEx = ExerciseLib.findById(newId);
+          // 替换计划当天的这个动作
+          const plan = await Storage.getPlan();
+          const planDay = plan.days.find(d => d.date === todayKey);
+          const idx = planDay.exercises.findIndex(e => e.id === exId);
+          if (idx === -1) { UI.toast('未找到原动作', { type: 'error' }); return; }
+          const orig = planDay.exercises[idx];
+          planDay.exercises[idx] = {
+            id: newEx.id,
+            nameZh: newEx.nameZh,
+            nameEn: newEx.nameEn,
+            muscles: newEx.muscles,
+            sets: orig.sets,
+            reps: orig.reps,
+            restSec: orig.restSec,
+            suggestedWeight: WeightRef.suggest(newEx.id, profile),
+            isFocus: orig.isFocus,
+            tips: newEx.tips,
+            imageUrl: newEx.imageUrl,
+          };
+          await Storage.savePlan(plan);
+          // 清掉那条动作的 log(因为换了)
+          if (log.completedExercises) {
+            log.completedExercises = log.completedExercises.filter(e => e.id !== exId);
+            await Storage.saveLog(todayKey, log);
+          }
+          UI.toast(`已替换为 ${newEx.nameZh}`, { type: 'success', icon: 'i-check' });
+          close();
+          render();
+        });
+      });
+    });
+  }
+
+  // ---------- 动作备注 ----------
+  async function openExerciseNote(exId, log, todayKey) {
+    const def = ExerciseLib.findById(exId);
+    const exLog = (log.completedExercises || []).find(e => e.id === exId);
+    const existing = (exLog && exLog.note) || '';
+
+    UI.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">${def ? def.nameZh : exId} · 备注</div>
+        <div class="modal-text">记录这次的感受 — 比如"今天偏重"、"动作变形"、"姿势找到了"。</div>
+        <textarea id="ex-note-input" rows="4" placeholder="写下你的感受..." style="width:100%;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:12px;outline:none;resize:none">${existing.replace(/[<>&"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c])}</textarea>
+        <div class="modal-actions mt-16">
+          <button class="btn btn-secondary" data-act="cancel">取消</button>
+          <button class="btn btn-primary" data-act="save">保存</button>
+        </div>
+      </div>
+    `, (modal, close) => {
+      modal.querySelector('[data-act="cancel"]').addEventListener('click', close);
+      modal.querySelector('[data-act="save"]').addEventListener('click', async () => {
+        const text = modal.querySelector('#ex-note-input').value.trim();
+        let entry = (log.completedExercises || []).find(e => e.id === exId);
+        if (!entry) {
+          entry = { id: exId, done: false, sets: [], note: text };
+          log.completedExercises = log.completedExercises || [];
+          log.completedExercises.push(entry);
+        } else {
+          entry.note = text;
+        }
+        await Storage.saveLog(todayKey, log);
+        close();
+        UI.toast('备注已保存', { type: 'success', icon: 'i-check' });
+        render();
+      });
+      setTimeout(() => modal.querySelector('#ex-note-input').focus(), 80);
+    });
   }
 
   global.TodayView = { render };

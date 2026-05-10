@@ -116,6 +116,18 @@
       <div class="section-title">体态照片</div>
       ${renderPhotos(photos)}
 
+      <div class="section-title">教练</div>
+      <div class="list-item" data-act="open-chat">
+        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-chat"/></svg></span>
+        <span class="label">和教练聊天</span>
+        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+      </div>
+      <div class="list-item" data-act="open-journal">
+        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg></span>
+        <span class="label">本周日记</span>
+        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+      </div>
+
       <div class="section-title">操作</div>
       <div class="list-item" data-act="edit-profile">
         <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-edit"/></svg></span>
@@ -135,6 +147,11 @@
       <div class="list-item" data-act="regen-plan">
         <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-refresh"/></svg></span>
         <span class="label">规则生成计划</span>
+        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+      </div>
+      <div class="list-item" data-act="custom-exercises">
+        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></span>
+        <span class="label">自定义动作</span>
         <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
       </div>
       <div class="list-item" data-act="export">
@@ -389,6 +406,9 @@
   function bindEvents() {
     const handlers = {
       'settings': () => SettingsView.open(),
+      'open-chat': () => ChatView.open(),
+      'open-journal': () => openJournal(),
+      'custom-exercises': () => openCustomExercises(),
       'edit-profile': async () => {
         const profile = await Storage.getProfile();
         App.startOnboarding(true, profile);
@@ -633,6 +653,231 @@
         render();
       });
     });
+  }
+
+  // ---------- 周报 ----------
+  async function openJournal() {
+    const profile = await Storage.getProfile();
+    if (!profile) return;
+    const weekStart = Planner.toDateKey(Planner.getMonday());
+    const cached = await Storage.getJournals();
+    const existing = cached.items[weekStart];
+
+    const showJournal = (text, fresh) => {
+      UI.showModal(`
+        <div class="sheet">
+          <div class="sheet-header">
+            <h2 style="margin:0">本周日记</h2>
+            <button class="btn btn-icon" data-act="close"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="sheet-body">
+            <div class="text-xs text-faint mb-12">${weekStart} 起 · ${fresh?'刚生成':'已生成'}</div>
+            <div class="journal-text">${text.replace(/\n/g, '<br/>')}</div>
+            <button class="btn btn-secondary btn-block mt-16" data-act="regen-journal">
+              <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-refresh"/></svg>重新生成
+            </button>
+          </div>
+        </div>
+      `, (modal, close) => {
+        modal.querySelector('[data-act="close"]').addEventListener('click', close);
+        modal.addEventListener('click', e => { if (e.target === modal) close(); });
+        modal.querySelector('[data-act="regen-journal"]').addEventListener('click', async () => {
+          close();
+          await fetchJournal();
+        });
+      });
+    };
+
+    const fetchJournal = async () => {
+      const closeLoading = UI.showLoading('AI 教练正在写日记...');
+      try {
+        const result = await AIPlanner.weeklyJournal(weekStart);
+        await Storage.saveJournal(weekStart, result.text);
+        closeLoading();
+        showJournal(result.text, true);
+      } catch (e) {
+        closeLoading();
+        UI.toast('生成失败:' + e.message, { type: 'error' });
+      }
+    };
+
+    if (existing) {
+      showJournal(existing.text, false);
+    } else {
+      await fetchJournal();
+    }
+  }
+
+  // ---------- 自定义动作 ----------
+  async function openCustomExercises() {
+    const data = await Storage.getCustomExercises();
+    const items = data.items || [];
+
+    UI.showModal(`
+      <div class="sheet">
+        <div class="sheet-header">
+          <h2 style="margin:0">自定义动作</h2>
+          <button class="btn btn-icon" data-act="close"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="sheet-body">
+          ${items.length === 0
+            ? '<div class="empty"><div class="empty-sub">还没有自定义动作。点下方按钮添加一个。</div></div>'
+            : items.map(it => `
+              <div class="card">
+                <div class="card-row">
+                  <div>
+                    <div class="fw-600">${escapeHtml(it.nameZh)}</div>
+                    <div class="text-xs text-dim">${(it.muscles||[]).join(' · ')}</div>
+                  </div>
+                  <button class="btn btn-icon" data-del="${it.id}" title="删除">
+                    <svg viewBox="0 0 24 24"><use href="#i-trash"/></svg>
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          <button class="btn btn-primary btn-block mt-16" data-act="add">
+            <svg viewBox="0 0 24 24" width="16" height="16"><use href="#i-plus"/></svg>
+            新建动作
+          </button>
+        </div>
+      </div>
+    `, (modal, close) => {
+      modal.querySelector('[data-act="close"]').addEventListener('click', close);
+      modal.addEventListener('click', e => { if (e.target === modal) close(); });
+      modal.querySelector('[data-act="add"]').addEventListener('click', () => {
+        close();
+        openAddCustomExercise();
+      });
+      modal.querySelectorAll('[data-del]').forEach(b => {
+        b.addEventListener('click', async () => {
+          const ok = await UI.confirmModal({
+            title: '删除动作?',
+            text: '已存在的训练记录不受影响,但计划中如使用了此动作将变得不可用。',
+            okLabel: '删除', danger: true,
+          });
+          if (!ok) return;
+          await Storage.removeCustomExercise(b.dataset.del);
+          const fresh = await Storage.getCustomExercises();
+          ExerciseLib.setCustom(fresh.items || []);
+          close();
+          openCustomExercises();
+        });
+      });
+    });
+  }
+
+  function openAddCustomExercise() {
+    const muscleOptions = [
+      { k: 'chest', l: '胸' }, { k: 'back', l: '背' }, { k: 'shoulders', l: '肩' },
+      { k: 'biceps', l: '二头' }, { k: 'triceps', l: '三头' },
+      { k: 'quads', l: '股四头' }, { k: 'hamstrings', l: '腘绳' }, { k: 'glutes', l: '臀' },
+      { k: 'calves', l: '小腿' }, { k: 'core', l: '核心' },
+    ];
+    const venueOptions = [
+      { k: 'gym', l: '健身房' }, { k: 'home_dumbbell', l: '哑铃' }, { k: 'home_bodyweight', l: '徒手' },
+    ];
+    const selected = { muscles: new Set(), venues: new Set() };
+
+    UI.showModal(`
+      <div class="sheet">
+        <div class="sheet-header">
+          <h2 style="margin:0">新建动作</h2>
+          <button class="btn btn-icon" data-act="close"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="sheet-body">
+          <div class="field">
+            <label>动作名 (中文)</label>
+            <input id="cx-name" type="text" maxlength="20" placeholder="如 哑铃绕环" />
+          </div>
+          <div class="field">
+            <label>英文名 (可选)</label>
+            <input id="cx-name-en" type="text" maxlength="40" placeholder="如 Dumbbell Around the World" />
+          </div>
+          <div class="field">
+            <label>主要肌群</label>
+            <div class="chip-grid">
+              ${muscleOptions.map(m => `<button class="chip" data-muscle="${m.k}">${m.l}</button>`).join('')}
+            </div>
+          </div>
+          <div class="field">
+            <label>适用场地</label>
+            <div class="chip-grid" style="grid-template-columns: 1fr 1fr 1fr">
+              ${venueOptions.map(v => `<button class="chip" data-venue="${v.k}">${v.l}</button>`).join('')}
+            </div>
+          </div>
+          <div class="field">
+            <label>类型</label>
+            <div class="seg-control" data-key="compound">
+              <button data-value="true" class="active">复合(多关节)</button>
+              <button data-value="false">孤立(单关节)</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>动作要点(每行一条)</label>
+            <textarea id="cx-tips" rows="3" placeholder="如:核心绷紧&#10;动作慢做&#10;呼吸均匀"></textarea>
+          </div>
+          <div class="modal-actions mt-16">
+            <button class="btn btn-secondary" data-act="cancel">取消</button>
+            <button class="btn btn-primary" data-act="save">保存</button>
+          </div>
+        </div>
+      </div>
+    `, (modal, close) => {
+      let isCompound = true;
+      modal.querySelector('[data-act="close"]').addEventListener('click', close);
+      modal.querySelector('[data-act="cancel"]').addEventListener('click', close);
+      modal.querySelectorAll('[data-muscle]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const k = btn.dataset.muscle;
+          if (selected.muscles.has(k)) { selected.muscles.delete(k); btn.classList.remove('selected'); }
+          else { selected.muscles.add(k); btn.classList.add('selected'); }
+        });
+      });
+      modal.querySelectorAll('[data-venue]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const k = btn.dataset.venue;
+          if (selected.venues.has(k)) { selected.venues.delete(k); btn.classList.remove('selected'); }
+          else { selected.venues.add(k); btn.classList.add('selected'); }
+        });
+      });
+      modal.querySelectorAll('[data-key="compound"] button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          modal.querySelectorAll('[data-key="compound"] button').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          isCompound = btn.dataset.value === 'true';
+        });
+      });
+      modal.querySelector('[data-act="save"]').addEventListener('click', async () => {
+        const name = modal.querySelector('#cx-name').value.trim();
+        if (!name) { UI.toast('请填写动作名', { type: 'error' }); return; }
+        if (selected.muscles.size === 0) { UI.toast('请选至少一个肌群', { type: 'error' }); return; }
+        if (selected.venues.size === 0) { UI.toast('请选至少一个场地', { type: 'error' }); return; }
+
+        const muscleLabels = { chest:'胸',back:'背',shoulders:'肩',biceps:'二头',triceps:'三头',quads:'股四头',hamstrings:'腘绳',glutes:'臀',calves:'小腿',core:'核心' };
+        const tips = modal.querySelector('#cx-tips').value.trim().split(/\r?\n/).filter(t => t).slice(0, 5);
+        const ex = {
+          nameZh: name,
+          nameEn: modal.querySelector('#cx-name-en').value.trim() || name,
+          muscles: [...selected.muscles].map(k => muscleLabels[k] || k),
+          muscleKeys: [...selected.muscles],
+          venues: [...selected.venues],
+          isCompound,
+          weightProfile: null,
+          tips: tips.length ? tips : ['(用户自定义动作)'],
+          imageUrl: null,
+        };
+        await Storage.addCustomExercise(ex);
+        const fresh = await Storage.getCustomExercises();
+        ExerciseLib.setCustom(fresh.items || []);
+        UI.toast('动作已添加', { type: 'success', icon: 'i-check' });
+        close();
+        openCustomExercises();
+      });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
   }
 
   global.MeView = { render };

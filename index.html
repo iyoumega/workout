@@ -122,6 +122,36 @@
       <symbol id="i-sparkles" viewBox="0 0 24 24">
         <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14z" fill="currentColor"/>
       </symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24">
+        <path d="M21 11.5a8.5 8.5 0 1 1-15-5.5L4 21l5-2a8.5 8.5 0 0 0 12-7.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="i-book" viewBox="0 0 24 24">
+        <path d="M4 4h12a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H4z M4 4v16 M8 8h8 M8 12h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="i-swap" viewBox="0 0 24 24">
+        <path d="M7 4l-3 3 3 3M4 7h12a4 4 0 0 1 0 8M17 20l3-3-3-3M20 17H8a4 4 0 0 1 0-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="i-mood-great" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M8 14a4 4 0 0 0 8 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="9" cy="10" r="1" fill="currentColor"/>
+        <circle cx="15" cy="10" r="1" fill="currentColor"/>
+      </symbol>
+      <symbol id="i-mood-ok" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M8 15h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="9" cy="10" r="1" fill="currentColor"/>
+        <circle cx="15" cy="10" r="1" fill="currentColor"/>
+      </symbol>
+      <symbol id="i-mood-low" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M8 16a4 4 0 0 1 8 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="9" cy="10" r="1" fill="currentColor"/>
+        <circle cx="15" cy="10" r="1" fill="currentColor"/>
+      </symbol>
+      <symbol id="i-note" viewBox="0 0 24 24">
+        <path d="M5 4h11l3 3v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M16 4v3h3 M8 12h8 M8 16h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -143,6 +173,9 @@
 
     <!-- 专注训练模式容器 -->
     <div id="workout-root" class="screen workout-screen hidden"></div>
+
+    <!-- AI 聊天容器 -->
+    <div id="chat-root" class="screen chat-screen hidden"></div>
 
     <!-- 主界面容器 -->
     <main id="main-root" class="main hidden">
@@ -221,6 +254,8 @@
   <script src="js/views/workout.js"></script>
   <script src="js/views/history.js"></script>
   <script src="js/views/settings.js"></script>
+  <script src="js/views/chat.js"></script>
+  <script src="js/views/body_map.js"></script>
   <script src="js/views/today.js"></script>
   <script src="js/views/plan.js"></script>
   <script src="js/views/me.js"></script>

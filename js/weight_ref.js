@@ -15,6 +15,7 @@
   const PROFILES = {
     // 杠铃复合
     squat:        { beginner: 0.80, intermediate: 1.20, advanced: 1.60 },
+    leg_press:    { beginner: 1.50, intermediate: 2.50, advanced: 3.50 },
     deadlift:     { beginner: 1.00, intermediate: 1.50, advanced: 2.00 },
     rdl:          { beginner: 0.70, intermediate: 1.10, advanced: 1.50 },
     bench:        { beginner: 0.60, intermediate: 0.90, advanced: 1.30 },

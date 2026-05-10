@@ -589,7 +589,7 @@ h3 { font-size: 16px; font-weight: 600; }
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.6);
   backdrop-filter: blur(4px);
-  z-index: 150;
+  z-index: 250;
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
   opacity: 0;
@@ -615,7 +615,7 @@ h3 { font-size: 16px; font-weight: 600; }
   position: fixed; left: 0; right: 0;
   top: calc(var(--safe-top) + 16px);
   display: flex; flex-direction: column; align-items: center; gap: 8px;
-  z-index: 250;
+  z-index: 280;
   pointer-events: none;
 }
 .toast {
@@ -660,7 +660,7 @@ h3 { font-size: 16px; font-weight: 600; }
   position: fixed; inset: 0;
   background: rgba(8,8,8,0.96);
   backdrop-filter: blur(8px);
-  z-index: 300;
+  z-index: 320;
   display: flex; align-items: center; justify-content: center;
   opacity: 0;
   transition: opacity 0.3s var(--ease);
@@ -1178,6 +1178,237 @@ h3 { font-size: 16px; font-weight: 600; }
 .a2hs-banner.show { transform: translateY(0); opacity: 1; }
 .a2hs-text { flex: 1; font-size: 13px; }
 .a2hs-text strong { display: block; margin-bottom: 2px; }
+
+/* ===== 心情打卡 ===== */
+.mood-block {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+}
+.mood-prompt { font-size: 14px; color: var(--text-dim); margin-bottom: 10px; }
+.mood-options {
+  display: flex; gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.mood-options::-webkit-scrollbar { display: none; }
+.mood-opt {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 12px;
+  background: var(--bg-elev);
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+  transition: border-color 0.2s var(--ease), color 0.2s var(--ease);
+  min-width: 64px;
+}
+.mood-opt svg { width: 22px; height: 22px; }
+.mood-opt.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(232,93,36,0.06);
+}
+.mood-advice {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(232,93,36,0.07);
+  border-left: 2px solid var(--accent);
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.mood-advice strong { color: var(--accent); margin-right: 6px; }
+
+/* ===== 适配建议卡 ===== */
+.adapt-card {
+  background: linear-gradient(135deg, var(--card), rgba(232,93,36,0.06));
+  border: 1px solid rgba(232,93,36,0.2);
+}
+
+/* ===== Chat 全屏 ===== */
+.chat-screen {
+  z-index: 200;
+  padding: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.chat-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: calc(var(--safe-top) + 12px) 16px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg);
+}
+.chat-title-block { flex: 1; }
+.chat-title { font-size: 17px; font-weight: 700; }
+.chat-subtitle { font-size: 11px; color: var(--success); margin-top: 2px; }
+.chat-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 12px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.chat-welcome {
+  text-align: center;
+  padding: 40px 20px 30px;
+}
+.chat-welcome-avatar {
+  width: 72px; height: 72px;
+  margin: 0 auto 14px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(232,93,36,0.2), rgba(232,93,36,0.05));
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.chat-welcome-name { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.chat-welcome-sub { font-size: 13px; color: var(--text-dim); }
+
+.chat-msg { display: flex; gap: 8px; max-width: 100%; }
+.chat-msg.user { justify-content: flex-end; }
+.chat-msg.assistant { justify-content: flex-start; }
+.chat-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: rgba(232,93,36,0.15);
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  flex: 0 0 28px;
+}
+.chat-avatar svg { width: 14px; height: 14px; }
+.chat-msg .bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.55;
+  word-wrap: break-word;
+}
+.chat-msg.user .bubble {
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.chat-msg.assistant .bubble {
+  background: var(--card);
+  border: 1px solid var(--border-soft);
+  color: var(--text);
+  border-bottom-left-radius: 4px;
+}
+.typing { display: inline-flex; gap: 4px; padding: 2px 0; }
+.typing span {
+  width: 6px; height: 6px;
+  background: var(--text-dim);
+  border-radius: 50%;
+  animation: typing 1.2s infinite ease-in-out;
+}
+.typing span:nth-child(2) { animation-delay: 0.2s; }
+.typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+.chat-input-bar {
+  padding: 8px 12px calc(var(--safe-bottom) + 8px);
+  background: rgba(18,18,18,0.92);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-soft);
+}
+.chat-suggestions {
+  display: flex; gap: 6px;
+  overflow-x: auto;
+  padding: 0 4px 8px;
+  -webkit-overflow-scrolling: touch;
+}
+.chat-suggestions::-webkit-scrollbar { display: none; }
+.chat-chip {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.chat-chip:active { background: var(--card-hover); color: var(--text); }
+.chat-input-row {
+  display: flex; gap: 8px; align-items: flex-end;
+}
+#chat-input {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 14px;
+  resize: none;
+  outline: none;
+  min-height: 40px;
+  max-height: 120px;
+  font-family: inherit;
+}
+#chat-input:focus { border-color: var(--accent); }
+.chat-send {
+  width: 40px; height: 40px;
+  flex: 0 0 40px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* ===== Journal 文本 ===== */
+.journal-text {
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+/* ===== Settings input ===== */
+.setting-input {
+  width: 100%;
+  height: 44px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 14px;
+  outline: none;
+}
+.setting-input:focus { border-color: var(--accent); }
+
+/* ===== Body map ===== */
+.bodymap-card { padding: 14px 16px; }
+.bodymap-row {
+  display: flex; gap: 12px;
+  justify-content: center;
+  margin: 6px 0;
+}
+.bodymap-svg {
+  width: 80px; height: auto;
+}
+.bodymap-tags {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  justify-content: center;
+}
+.muscle-tag.highlight {
+  background: rgba(232,93,36,0.12);
+  color: var(--accent);
+  border-color: rgba(232,93,36,0.3);
+}
+
+/* ===== Swap option card hover ===== */
+.swap-option { cursor: pointer; transition: background 0.15s var(--ease); }
+.swap-option:active { background: var(--card-hover); }
+
+/* ===== Textarea base ===== */
+textarea {
+  font-family: inherit;
+  font-size: 14px;
+}
 
 /* ===== 空状态 ===== */
 .empty {

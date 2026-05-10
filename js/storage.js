@@ -92,6 +92,52 @@
       return out;
     },
 
+    // ---------- custom exercises ----------
+    async getCustomExercises() {
+      const v = await readJSON(k('custom_exercises'));
+      return v || { items: [] };
+    },
+    async addCustomExercise(ex) {
+      const data = await this.getCustomExercises();
+      const id = ex.id || ('custom_' + Date.now());
+      const item = { ...ex, id, custom: true, createdAt: new Date().toISOString() };
+      data.items = data.items.filter(e => e.id !== id);
+      data.items.push(item);
+      await writeJSON(k('custom_exercises'), data);
+      return item;
+    },
+    async removeCustomExercise(id) {
+      const data = await this.getCustomExercises();
+      data.items = data.items.filter(e => e.id !== id);
+      await writeJSON(k('custom_exercises'), data);
+      return data;
+    },
+
+    // ---------- chat history ----------
+    async getChatHistory() {
+      const v = await readJSON(k('chat'));
+      return v || { messages: [] };
+    },
+    async saveChatHistory(messages) {
+      // 限制最近 60 条
+      const trimmed = (messages || []).slice(-60);
+      await writeJSON(k('chat'), { messages: trimmed, updatedAt: new Date().toISOString() });
+      return trimmed;
+    },
+    async clearChatHistory() { await remove(k('chat')); },
+
+    // ---------- weekly journals ----------
+    async getJournals() {
+      const v = await readJSON(k('journals'));
+      return v || { items: {} };
+    },
+    async saveJournal(weekStartDate, text) {
+      const data = await this.getJournals();
+      data.items[weekStartDate] = { text, at: new Date().toISOString() };
+      await writeJSON(k('journals'), data);
+      return data;
+    },
+
     // ---------- weights (body weight time series) ----------
     async getWeights() {
       const v = await readJSON(k('weights'));

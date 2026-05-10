@@ -6,6 +6,10 @@
 
   async function boot() {
     try {
+      // 把自定义动作合并到动作库
+      const custom = await Storage.getCustomExercises();
+      ExerciseLib.setCustom(custom.items || []);
+
       const settings = await Storage.getSettings();
       const profile = await Storage.getProfile();
 

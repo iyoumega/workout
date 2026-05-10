@@ -33,6 +33,20 @@
     }
   }
 
+  // 教练人设
+  async function getCoachIdentity() {
+    const settings = await Storage.getSettings();
+    const name = settings.coachName || '小橙';
+    const tone = settings.coachTone || 'friendly'; // friendly | strict | playful | gentle
+    const toneDesc = ({
+      friendly: '语气温和、亲切、专业,像可靠的朋友',
+      strict: '语气直接、严格、不啰嗦,像严师',
+      playful: '语气幽默、俏皮、有梗,但不失专业',
+      gentle: '语气温柔、耐心、鼓励性强,像陪伴者',
+    })[tone] || '语气温和、专业';
+    return { name, tone, toneDesc };
+  }
+
   async function callPlanAI(profile, opts) {
     const venue = profile.venue;
     const lib = ExerciseLib.byVenue(venue).map(e => ({
@@ -66,7 +80,8 @@
       home_bodyweight: '家里(纯徒手)',
     })[venue] || venue;
 
-    const sys = `你是一名经验丰富的私人健身教练。根据用户档案,从给定的动作库里选动作,生成 7 天训练计划。
+    const coach = await getCoachIdentity();
+    const sys = `你是用户的私教"${coach.name}"。${coach.toneDesc}。根据用户档案,从给定的动作库里选动作,生成 7 天训练计划。
 
 硬性规则:
 - 训练日数量必须等于用户的"每周训练天数"
@@ -223,9 +238,10 @@ ${lib.map(e => `${e.id}|${e.name}|${e.muscles}|${e.compound?'复合':'孤立'}`)
     return isCompound ? 90 : 60;
   }
 
-  // ---------- 教练点评 ----------
+  // ---------- 教练点评(用 coach 人设)----------
   async function coach(profile, recentLogs) {
-    const sys = `你是一名亲和的私人健身教练。给用户一句简短的训练建议或鼓励(中文,40-80 字,不要 markdown)。语气真诚、专业、不啰嗦。可以表扬、提醒、或针对最近表现给具体建议。`;
+    const id = await getCoachIdentity();
+    const sys = `你是用户的私教"${id.name}"。${id.toneDesc}。给用户一句简短的训练建议或鼓励(中文,40-80 字,不要 markdown,不要 emoji)。可以表扬、提醒、或针对最近表现给具体建议。`;
 
     const goalText = ({ fat_loss:'减脂', muscle_gain:'增肌', shape:'塑形', maintain:'维持' })[profile.goal];
     const recentSummary = summarizeRecent(recentLogs);
@@ -245,17 +261,153 @@ ${lib.map(e => `${e.id}|${e.name}|${e.muscles}|${e.compound?'复合':'孤立'}`)
     return { text: (result.text || '').trim() };
   }
 
-  function summarizeRecent(logs) {
+  function summarizeRecent(logs, days) {
     const today = new Date();
-    const cutoff = new Date(today); cutoff.setDate(today.getDate() - 7);
+    const cutoff = new Date(today); cutoff.setDate(today.getDate() - (days || 7));
     const recent = Object.entries(logs || {})
       .filter(([k, l]) => l && l.completedAt && new Date(k) >= cutoff)
       .sort((a, b) => a[0].localeCompare(b[0]));
-    if (!recent.length) return '最近 7 天没有完成的训练';
+    if (!recent.length) return '最近没有完成的训练';
     return recent.map(([date, log]) => {
       const sets = (log.completedExercises || []).reduce((s, e) => s + (e.sets ? e.sets.length : 0), 0);
       return `${date}(${sets}组)`;
     }).join(', ');
+  }
+
+  // ---------- 全功能聊天(带上下文)----------
+  async function chat(messages) {
+    const profile = await Storage.getProfile();
+    const plan = await Storage.getPlan();
+    const logs = await Storage.listLogs();
+    const weights = await Storage.getWeights();
+    const coach = await getCoachIdentity();
+
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const todayDay = plan ? Planner.getDayByDate(plan, todayKey) : null;
+    const recentLogSummary = summarizeRecent(logs, 7);
+    const latestWeight = (weights.entries && weights.entries.length) ? weights.entries[weights.entries.length-1].kg : null;
+
+    const sysContent = `你是用户的专属健身教练,名字叫"${coach.name}"。${coach.toneDesc}。
+
+用户档案:
+- 性别/年龄: ${profile.basics.gender==='female'?'女':'男'} / ${profile.basics.age}岁
+- 身高/体重: ${profile.basics.height}cm / ${profile.basics.weight}kg${latestWeight && Math.abs(latestWeight-profile.basics.weight)>0.5 ? ' (最近称重 ' + latestWeight + 'kg)' : ''}
+- 目标: ${profile.goal}, 经验: ${profile.experience}, 每周 ${profile.daysPerWeek} 天, 场地: ${profile.venue}
+- 重点部位: ${(profile.focusAreas||[]).join('、') || '无特别偏好'}
+
+今天的训练: ${todayDay ? (todayDay.type === 'rest' ? '休息日' : todayDay.title + '(' + todayDay.exercises.map(e=>e.nameZh).join('、') + ')') : '未排'}
+
+最近 7 天: ${recentLogSummary}
+
+回复要求:
+- 中文,简洁直接,通常 1-3 段,80-200 字之间
+- 不用 markdown,不用列表符号,自然语句
+- 给具体建议,不空泛
+- 鼓励但不油腻
+- 如果用户问的是计划调整(换动作、加重量、休息),给出明确的回答
+- 不要每次都问候开场,直接给内容`;
+
+    const aiMessages = [
+      { role: 'system', content: sysContent },
+      ...messages.slice(-12).map(m => ({ role: m.role, content: m.content })),
+    ];
+
+    const result = await AI.chat(aiMessages, {
+      model: 'deepseek-chat',
+      temperature: 0.7,
+      maxTokens: 600,
+    });
+    return { text: (result.text || '').trim() };
+  }
+
+  // ---------- 周报(长篇叙事)----------
+  async function weeklyJournal(weekStartDate) {
+    const profile = await Storage.getProfile();
+    const plan = await Storage.getPlan();
+    const allLogs = await Storage.listLogs();
+    const weights = await Storage.getWeights();
+    const coach = await getCoachIdentity();
+
+    const start = new Date(weekStartDate);
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      dates.push(d.toISOString().slice(0,10));
+    }
+    const weekLogs = dates.map(d => ({ date: d, log: allLogs[d] }));
+    const weekWeights = (weights.entries || []).filter(e => dates.includes(e.date));
+
+    const summary = weekLogs.map(({ date, log }) => {
+      if (!log || !log.completedAt) {
+        const dayInPlan = plan ? Planner.getDayByDate(plan, date) : null;
+        return `${date}: ${dayInPlan ? (dayInPlan.type==='rest'?'休息日':'未完成 ' + dayInPlan.title) : '无计划'}`;
+      }
+      const sets = (log.completedExercises || []).reduce((s,e) => s+(e.sets?e.sets.length:0), 0);
+      const reps = (log.completedExercises || []).reduce((s,e) => s+(e.sets||[]).reduce((a,b)=>a+(b.reps||0),0), 0);
+      const dur = log.durationSec ? Math.round(log.durationSec/60) + '分钟' : '';
+      return `${date}: 完成 ${sets}组 ${reps}次 ${dur}`;
+    }).join('\n');
+
+    const weightChange = weekWeights.length >= 2
+      ? `本周体重 ${weekWeights[0].kg}kg → ${weekWeights[weekWeights.length-1].kg}kg`
+      : (weekWeights.length === 1 ? `本周体重 ${weekWeights[0].kg}kg` : '');
+
+    const sys = `你是用户的私教"${coach.name}"。${coach.toneDesc}。
+
+请为用户写一篇本周训练日记,300-500 字,中文,自然散文体,不要 markdown。
+
+要求:
+- 真诚地描述这一周用户做了什么、有什么亮点、有什么遗憾
+- 不要列条目,要像朋友写信
+- 给一个本周的高光时刻
+- 一句下周的鼓励或具体建议
+- 称呼用户用"你"`;
+
+    const user = `用户档案: ${profile.basics.gender==='female'?'女':'男'}, ${profile.basics.age}岁, 目标${profile.goal}, ${profile.experience}水平
+本周(从 ${weekStartDate} 起)训练记录:
+${summary}
+${weightChange}
+
+请写一篇本周日记。`;
+
+    const result = await AI.chat(
+      [
+        { role: 'system', content: sys },
+        { role: 'user', content: user },
+      ],
+      { model: 'deepseek-chat', temperature: 0.75, maxTokens: 900 }
+    );
+    return { text: (result.text || '').trim() };
+  }
+
+  // ---------- 当日心情 → 计划调整建议 ----------
+  async function moodAdvice(profile, day, mood) {
+    const coach = await getCoachIdentity();
+    const moodLabels = {
+      great: '精力充沛、状态很好',
+      ok: '一般、还行',
+      tired: '有些疲惫',
+      sore: '昨天的训练还在酸痛',
+      low: '心情低落、动力不足',
+    };
+    const moodLabel = moodLabels[mood] || mood;
+
+    const sys = `你是私教"${coach.name}"。${coach.toneDesc}。
+根据用户今天的状态,给出 60-100 字的中文建议(不用 markdown)。如果状态不佳,可以建议:减少组数/重量/换轻松动作/改成休息。如果状态很好,可以鼓励冲击 PR 或加点强度。要具体、有建设性。`;
+
+    const exercises = (day && day.exercises) ? day.exercises.map(e => e.nameZh).join('、') : '';
+    const user = `今天计划是: ${day ? day.title : '休息'} (${exercises})
+用户感觉: ${moodLabel}
+目标: ${profile.goal}, 经验: ${profile.experience}
+
+请给一句具体的训练建议。`;
+
+    const result = await AI.chat(
+      [{ role: 'system', content: sys }, { role: 'user', content: user }],
+      { model: 'deepseek-chat', temperature: 0.6, maxTokens: 250 }
+    );
+    return { text: (result.text || '').trim() };
   }
 
   // ---------- 体态分析 ----------
@@ -283,5 +435,5 @@ ${lib.map(e => `${e.id}|${e.name}|${e.muscles}|${e.compound?'复合':'孤立'}`)
     return { text: (result.text || '').trim(), photoUsed: first.key };
   }
 
-  global.AIPlanner = { generate, coach, analyzePhysique };
+  global.AIPlanner = { generate, coach, chat, weeklyJournal, moodAdvice, analyzePhysique, getCoachIdentity };
 })(window);
