@@ -58,7 +58,7 @@
       <div class="stat-row">
         <div class="stat">
           <div class="stat-icon"><svg viewBox="0 0 24 24"><use href="#i-fire"/></svg></div>
-          <div class="stat-value">${stats.streak}</div>
+          <div class="stat-value ${stats.streak > 0 ? 'streak-active' : ''}">${stats.streak}</div>
           <div class="stat-label">连续打卡</div>
         </div>
         <div class="stat">

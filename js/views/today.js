@@ -44,6 +44,24 @@
     const dateLabel = formatDateLabel(new Date());
 
     if (day.type === 'rest') {
+      // 选 3 个轻度恢复动作
+      const recoveryIds = ['cat_cow', 'world_greatest_stretch', 'leg_swing', 'shoulder_dislocate', 'hip_flexor_stretch', 'plank', 'glute_bridge'];
+      const recoveryItems = recoveryIds
+        .map(id => ExerciseLib.findById(id))
+        .filter(e => e && e.venues.includes(profile.venue))
+        .slice(0, 4);
+
+      // 用日期作种子选 3 条恢复 tips
+      const tipsPool = [
+        '今天给身体一个修整的机会 — 真正的进步发生在休息时',
+        '睡满 7-8 小时,蛋白质达标,水充足。这就是今天的训练',
+        '可以散步 30 分钟,或做点轻度拉伸',
+        '泡热水澡或做泡沫轴放松,缓解延迟性酸痛',
+        '别让"必须练"的执念逼着你训练 — 听身体的',
+      ];
+      const seed = (new Date().getDate() + day.dayIndex) % tipsPool.length;
+      const todayTip = tipsPool[seed];
+
       root().innerHTML = `
         <div class="today-header">
           <div>
@@ -56,11 +74,36 @@
           </div>
         </div>
         <div class="card">
-          <h3 class="mb-8">好好放松一下</h3>
-          <p class="text-dim text-sm">充足睡眠和营养是肌肉生长的关键。可以做些轻度活动:散步、拉伸、瑜伽。</p>
+          <div class="row gap mb-8">
+            <svg viewBox="0 0 24 24" width="18" height="18" style="color:var(--accent); flex:0 0 18px"><use href="#i-fire"/></svg>
+            <h3 style="margin:0">${todayTip}</h3>
+          </div>
         </div>
+        ${recoveryItems.length ? `
+          <div class="section-title">轻度恢复(可选)</div>
+          ${recoveryItems.map(it => `
+            <div class="card recovery-item">
+              <div class="card-row">
+                <div>
+                  <div class="fw-600">${it.nameZh}</div>
+                  <div class="text-xs text-dim">${(it.muscles||[]).join(' · ')}</div>
+                </div>
+                <button class="btn btn-icon" data-bili-rec="${it.nameZh}" title="看示范">
+                  <svg viewBox="0 0 24 24"><use href="#i-link"/></svg>
+                </button>
+              </div>
+              <div class="text-sm text-dim mt-8">${(it.tips||[]).join(' · ')}</div>
+            </div>
+          `).join('')}` : ''}
         ${nutritionCard(day.nutrition)}
       `;
+      // 看示范跳转 B 站
+      root().querySelectorAll('[data-bili-rec]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const url = `https://search.bilibili.com/all?keyword=${encodeURIComponent(btn.dataset.biliRec + ' 标准动作')}`;
+          window.open(url, '_blank');
+        });
+      });
       return;
     }
 

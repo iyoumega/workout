@@ -81,5 +81,51 @@
     return isPerHand(exerciseId) ? `${kg}kg / 只` : `${kg}kg`;
   }
 
-  global.WeightRef = { suggest, format, isPerHand, PROFILES };
+  /**
+   * Progression hint: 根据最近一次该动作的完成情况,建议下次重量调整。
+   * @param {string} exerciseId
+   * @param {Object} allLogs - { dateKey: log }
+   * @param {Object} thisExLog - 当前动作日志(可空,表示尚未做过当次)
+   * @returns {Object|null} { lastWeight, lastReps, suggestedWeight, message }
+   */
+  function progressionHint(exerciseId, allLogs, thisExLog) {
+    // 找最近一次有 weight 数据的同动作日志
+    const dates = Object.keys(allLogs || {}).sort((a,b) => b.localeCompare(a));
+    let lastSets = null;
+    let lastDate = null;
+    for (const d of dates) {
+      const log = allLogs[d];
+      if (!log || !log.completedExercises) continue;
+      const entry = log.completedExercises.find(e => e.id === exerciseId && e.sets && e.sets.length);
+      if (!entry) continue;
+      const withWeight = entry.sets.filter(s => s.weight && s.weight > 0);
+      if (!withWeight.length) continue;
+      lastSets = entry.sets;
+      lastDate = d;
+      break;
+    }
+    if (!lastSets) return null;
+
+    const lastWeight = lastSets[0].weight;
+    const lastRepsArr = lastSets.map(s => s.reps).filter(r => r);
+    const avgReps = lastRepsArr.length ? Math.round(lastRepsArr.reduce((a,b)=>a+b,0) / lastRepsArr.length) : null;
+
+    // 简单判断:如果所有组都达到了 8+ 次,建议加重;如果都低于 6 次,建议减;否则持平
+    let suggestedWeight = lastWeight;
+    let message = '';
+    if (avgReps != null) {
+      if (avgReps >= 10) {
+        suggestedWeight = lastWeight + (lastWeight >= 50 ? 5 : 2.5);
+        message = `上次 ${lastWeight}kg×${avgReps},今天可以试 ${suggestedWeight}kg`;
+      } else if (avgReps < 6) {
+        suggestedWeight = Math.max(lastWeight - 2.5, 0);
+        message = `上次 ${lastWeight}kg×${avgReps},强度有点大,降到 ${suggestedWeight}kg 再冲一下`;
+      } else {
+        message = `上次 ${lastWeight}kg×${avgReps},今天保持`;
+      }
+    }
+    return { lastWeight, lastReps: avgReps, suggestedWeight, message, lastDate };
+  }
+
+  global.WeightRef = { suggest, format, isPerHand, PROFILES, progressionHint };
 })(window);

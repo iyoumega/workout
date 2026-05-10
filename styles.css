@@ -1408,6 +1408,42 @@ h3 { font-size: 16px; font-weight: 600; }
   border: 1px dashed var(--border);
 }
 
+/* ===== 进阶提示(workout mode 第一组前)===== */
+.progression-hint {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  background: rgba(232,93,36,0.10);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.progression-hint svg { color: var(--accent); flex: 0 0 14px; }
+
+/* ===== Workout Mode 双行操作区 ===== */
+.w-action-secondary {
+  display: flex; gap: 8px; justify-content: center;
+  padding: 0 16px 6px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 10px;
+  background: var(--bg);
+}
+
+/* ===== 休息日恢复动作卡 ===== */
+.recovery-item {
+  background: linear-gradient(135deg, var(--card), rgba(60,180,120,0.04));
+  border-color: rgba(60,180,120,0.15);
+}
+
+/* ===== 连击数字动画(stat-value 的 streak)===== */
+@keyframes streak-pulse {
+  0%, 100% { text-shadow: 0 0 0 transparent; transform: scale(1); }
+  50% { text-shadow: 0 0 12px rgba(232,93,36,0.6); transform: scale(1.05); }
+}
+.stat .stat-value.streak-active {
+  animation: streak-pulse 2.4s ease-in-out infinite;
+}
+
 /* ===== 训练总结教练寄语 ===== */
 .w-coach-message {
   text-align: center;

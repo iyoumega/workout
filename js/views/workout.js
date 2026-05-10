@@ -12,13 +12,16 @@
 
   function root() { return document.getElementById('workout-root'); }
 
-  function start(day, existingLog, opts = {}) {
+  async function start(day, existingLog, opts = {}) {
     const log = existingLog ? deepCopy(existingLog) : {
       dayIndex: day.dayIndex,
       completedExercises: [],
       startedAt: new Date().toISOString(),
     };
     if (!log.startedAt) log.startedAt = new Date().toISOString();
+
+    // 预加载所有 logs,用于 progression hint
+    const allLogs = await Storage.listLogs().catch(() => ({}));
 
     // 找到第一个未完成的动作 + set
     let exIdx = 0, setIdx = 0;
@@ -40,12 +43,13 @@
       day, log,
       exIdx, setIdx,
       phase: exIdx >= day.exercises.length ? 'summary' : 'set',
-      lastWeight: null,    // 上一组重量(便于预填)
+      lastWeight: null,
       lastReps: null,
       tickerId: null,
       restRemaining: 0,
       restTotal: 0,
       restPaused: false,
+      allLogs,
       onFinish: opts.onFinish || (() => {}),
     };
 
@@ -111,9 +115,17 @@
     const overallPct = (overallDone / overallTotal) * 100;
 
     const lastSet = exDone.sets[exDone.sets.length - 1];
+
+    // progression hint: 仅在第 1 组、当前没有 lastSet 时计算
+    const progression = (setIdx === 0 && !lastSet)
+      ? (WeightRef.progressionHint(ex.id, state.allLogs || {}, exDone) || null)
+      : null;
+
     const prefillWeight = lastSet
       ? lastSet.weight
-      : (state.lastWeight != null ? state.lastWeight : (ex.suggestedWeight != null ? ex.suggestedWeight : ''));
+      : (state.lastWeight != null ? state.lastWeight
+         : (progression ? progression.suggestedWeight
+            : (ex.suggestedWeight != null ? ex.suggestedWeight : '')));
     const prefillReps = lastSet ? lastSet.reps : (state.lastReps != null ? state.lastReps : parseRepsLow(ex.reps));
     const weightHint = ex.suggestedWeight != null ? WeightRef.format(ex.suggestedWeight, ex.id) : null;
 
@@ -149,6 +161,11 @@
           <div class="w-target-row"><span>组间休息</span><strong>${ex.restSec}s</strong></div>
           ${weightHint ? `<div class="w-target-row"><span>建议重量</span><strong style="color:var(--accent)">${weightHint}</strong></div>` : ''}
         </div>
+        ${progression && progression.message ? `
+          <div class="progression-hint mt-12">
+            <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-flash"/></svg>
+            ${progression.message}
+          </div>` : ''}
 
         ${exDone.sets.length > 0 ? `
           <div class="w-history-strip">
@@ -186,9 +203,14 @@
         </div>
       </div>
 
+      <div class="w-action-secondary">
+        <button class="btn btn-sm btn-ghost" data-act="swap-ex">
+          <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-swap"/></svg>换一个
+        </button>
+        <button class="btn btn-sm btn-ghost" data-act="skip-ex">跳过此动作</button>
+      </div>
       <div class="w-actions">
-        <button class="btn btn-secondary" data-act="skip-ex">跳过此动作</button>
-        <button class="btn btn-primary flex-1" data-act="finish-set">
+        <button class="btn btn-primary btn-block" data-act="finish-set">
           <svg viewBox="0 0 24 24"><use href="#i-check"/></svg>
           完成本组
         </button>
@@ -201,6 +223,7 @@
   function bindSetEvents() {
     root().querySelector('[data-act="quit"]').addEventListener('click', confirmQuit);
     root().querySelector('[data-act="skip-ex"]').addEventListener('click', skipExercise);
+    root().querySelector('[data-act="swap-ex"]')?.addEventListener('click', swapCurrentExercise);
     root().querySelector('[data-act="finish-set"]').addEventListener('click', finishSet);
     root().querySelectorAll('[data-step]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -209,6 +232,82 @@
         const cur = Number(input.value) || 0;
         const next = Math.max(0, cur + Number(delta));
         input.value = field === 'weight' ? next : Math.round(next);
+      });
+    });
+  }
+
+  async function swapCurrentExercise() {
+    const ex = state.day.exercises[state.exIdx];
+    const profile = await Storage.getProfile();
+    const alts = ExerciseLib.alternatives(ex.id, profile.venue);
+    if (!alts.length) {
+      UI.toast('没有合适的替代动作', { type: 'error' });
+      return;
+    }
+    UI.showModal(`
+      <div class="sheet">
+        <div class="sheet-header">
+          <h2 style="margin:0">换一个</h2>
+          <button class="btn btn-icon" data-act="close"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="sheet-body">
+          <div class="text-dim text-sm mb-12">把 <strong>${ex.nameZh}</strong> 换成:</div>
+          ${alts.map(a => {
+            const w = WeightRef.suggest(a.id, profile);
+            return `
+              <div class="card swap-option" data-pick="${a.id}">
+                <div class="card-row">
+                  <div>
+                    <div class="fw-600">${a.nameZh}</div>
+                    <div class="text-xs text-dim">${(a.muscles||[]).join(' · ')}</div>
+                  </div>
+                  ${w != null ? `<div class="text-sm" style="color:var(--accent); font-weight:600">${WeightRef.format(w, a.id)}</div>` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `, (modal, close) => {
+      modal.querySelector('[data-act="close"]').addEventListener('click', close);
+      modal.addEventListener('click', e => { if (e.target === modal) close(); });
+      modal.querySelectorAll('[data-pick]').forEach(opt => {
+        opt.addEventListener('click', async () => {
+          const newId = opt.dataset.pick;
+          const newEx = ExerciseLib.findById(newId);
+          // 替换计划里这个位置
+          const plan = await Storage.getPlan();
+          const planDay = plan.days.find(d => d.date === state.day.date);
+          const idx = planDay.exercises.findIndex(e => e.id === ex.id);
+          const orig = planDay.exercises[idx];
+          planDay.exercises[idx] = {
+            id: newEx.id,
+            nameZh: newEx.nameZh,
+            nameEn: newEx.nameEn,
+            muscles: newEx.muscles,
+            sets: orig.sets,
+            reps: orig.reps,
+            restSec: orig.restSec,
+            suggestedWeight: WeightRef.suggest(newEx.id, profile),
+            isFocus: orig.isFocus,
+            tips: newEx.tips,
+            imageUrl: newEx.imageUrl,
+          };
+          await Storage.savePlan(plan);
+          // 同步内存中的 day
+          state.day.exercises = planDay.exercises;
+          // 当前 ex 的 log 清掉(还没做)
+          if (state.log.completedExercises) {
+            state.log.completedExercises = state.log.completedExercises.filter(e => e.id !== ex.id);
+            await Storage.saveLog(state.day.date, state.log);
+          }
+          state.setIdx = 0;
+          state.lastWeight = null;
+          state.lastReps = null;
+          close();
+          UI.toast(`换成 ${newEx.nameZh}`, { type: 'success', icon: 'i-check' });
+          render();
+        });
       });
     });
   }
