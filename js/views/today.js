@@ -169,6 +169,7 @@
         </div>
       </div>
       ${heroBlock}
+      <div id="ai-tip-slot"></div>
       <div class="day-progress">
         <div class="progress"><div class="progress-bar" style="width:${pct}%"></div></div>
       </div>
@@ -183,6 +184,82 @@
     `;
 
     bindEvents(day, log, plan);
+    renderAITip(profile, todayKey);
+  }
+
+  // 显示 AI 教练点评卡;每天最多调一次 API,缓存在 settings.aiTip
+  async function renderAITip(profile, todayKey) {
+    const slot = document.getElementById('ai-tip-slot');
+    if (!slot) return;
+    const settings = await Storage.getSettings();
+    const cached = settings.aiTip || {};
+    if (cached.date === todayKey && cached.text) {
+      slot.innerHTML = aiTipCard(cached.text, false);
+      bindAITipCard(profile, todayKey);
+      return;
+    }
+    if (settings.aiTipDisabled) return;
+
+    // 显示初始按钮(用户主动触发,避免无声调用 API)
+    slot.innerHTML = `
+      <div class="card ai-tip-stub">
+        <div class="row gap" style="align-items:center">
+          <svg viewBox="0 0 24 24" width="18" height="18" style="color:var(--accent); flex:0 0 18px"><use href="#i-sparkles"/></svg>
+          <div class="flex-1 text-sm text-dim">让 AI 教练给一句今日建议?</div>
+          <button class="btn btn-sm btn-secondary" id="ai-tip-fetch">来一句</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('ai-tip-fetch')?.addEventListener('click', async () => {
+      const btn = document.getElementById('ai-tip-fetch');
+      btn.disabled = true;
+      btn.textContent = '...';
+      try {
+        const logs = await Storage.listLogs();
+        const result = await AIPlanner.coach(profile, logs);
+        await Storage.saveSettings({ aiTip: { date: todayKey, text: result.text, at: new Date().toISOString() } });
+        slot.innerHTML = aiTipCard(result.text, true);
+        bindAITipCard(profile, todayKey);
+      } catch (e) {
+        UI.toast('AI 暂不可用:' + e.message, { type: 'error', ttl: 3000 });
+        btn.disabled = false;
+        btn.textContent = '重试';
+      }
+    });
+  }
+
+  function aiTipCard(text, fresh) {
+    return `
+      <div class="card ai-tip-card">
+        <div class="row gap mb-8">
+          <svg viewBox="0 0 24 24" width="16" height="16" style="color:var(--accent); flex:0 0 16px"><use href="#i-sparkles"/></svg>
+          <span class="text-xs text-dim">AI 教练 · ${fresh?'刚刚':'今日'}</span>
+          <span class="flex-1"></span>
+          <button class="btn btn-icon" data-act="ai-tip-refresh" title="重新生成" style="width:28px;height:28px">
+            <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-refresh"/></svg>
+          </button>
+        </div>
+        <div class="ai-tip-text">${text}</div>
+      </div>
+    `;
+  }
+
+  function bindAITipCard(profile, todayKey) {
+    document.querySelector('[data-act="ai-tip-refresh"]')?.addEventListener('click', async () => {
+      const btn = document.querySelector('[data-act="ai-tip-refresh"]');
+      btn.disabled = true;
+      try {
+        const logs = await Storage.listLogs();
+        const result = await AIPlanner.coach(profile, logs);
+        await Storage.saveSettings({ aiTip: { date: todayKey, text: result.text, at: new Date().toISOString() } });
+        const slot = document.getElementById('ai-tip-slot');
+        slot.innerHTML = aiTipCard(result.text, true);
+        bindAITipCard(profile, todayKey);
+      } catch (e) {
+        UI.toast('生成失败', { type: 'error' });
+        btn.disabled = false;
+      }
+    });
   }
 
   function nutritionCard(nutrition) {

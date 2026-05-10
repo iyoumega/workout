@@ -127,9 +127,14 @@
         <span class="label">更新体态照片</span>
         <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
       </div>
+      <div class="list-item" data-act="ai-regen-plan">
+        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-sparkles"/></svg></span>
+        <span class="label">用 AI 重新生成计划</span>
+        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+      </div>
       <div class="list-item" data-act="regen-plan">
         <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-refresh"/></svg></span>
-        <span class="label">重新生成本周计划</span>
+        <span class="label">规则生成计划</span>
         <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
       </div>
       <div class="list-item" data-act="export">
@@ -259,7 +264,11 @@
         ${slot('side','侧面')}
         ${slot('back','背面')}
       </div>
-      <div class="text-xs text-faint center">点击放大查看</div>
+      <div class="text-xs text-faint center mb-12">点击放大查看</div>
+      <button class="btn btn-secondary btn-block" data-act="ai-analyze-photos">
+        <svg viewBox="0 0 24 24" width="16" height="16"><use href="#i-sparkles"/></svg>
+        AI 体态分析
+      </button>
     `;
   }
 
@@ -388,8 +397,8 @@
       'add-weight': openWeightAdder,
       'regen-plan': async () => {
         const ok = await UI.confirmModal({
-          title: '重新生成本周计划?',
-          text: '会基于当前档案重新选动作。已完成的打卡记录会保留。',
+          title: '规则重新生成?',
+          text: '基于当前档案、用规则选动作。已完成的打卡记录会保留。',
           okLabel: '重新生成',
         });
         if (!ok) return;
@@ -397,6 +406,30 @@
         await Storage.savePlan(Planner.generate(profile));
         UI.toast('计划已更新', { type: 'success', icon: 'i-check' });
         render();
+      },
+      'ai-regen-plan': async () => {
+        const ok = await UI.confirmModal({
+          title: '用 AI 生成新计划?',
+          text: 'AI 会根据你的档案、重点部位重新设计,可能需要 5-15 秒。',
+          okLabel: '开始生成',
+        });
+        if (!ok) return;
+        const profile = await Storage.getProfile();
+        const closeLoading = UI.showLoading('AI 教练设计中...');
+        try {
+          const newPlan = await AIPlanner.generate(profile);
+          await Storage.savePlan(newPlan);
+          closeLoading();
+          if (newPlan.generatorVersion === 'ai-v1') {
+            UI.toast('AI 计划已生成', { type: 'success', icon: 'i-sparkles' });
+          } else {
+            UI.toast('AI 暂时不可用,已回退到规则计划', { type: 'error', ttl: 3500 });
+          }
+          render();
+        } catch (e) {
+          closeLoading();
+          UI.toast('生成失败:' + e.message, { type: 'error', ttl: 3500 });
+        }
       },
       'export': async () => {
         const json = await Storage.exportAll();
@@ -410,6 +443,38 @@
         UI.toast('备份已下载', { type: 'success', icon: 'i-download' });
       },
       'import': () => document.getElementById('import-file').click(),
+      'ai-analyze-photos': async () => {
+        const profile = await Storage.getProfile();
+        const photos = await Storage.getPhotos();
+        if (!photos || (!photos.front && !photos.side && !photos.back)) {
+          UI.toast('需要先上传体态照片', { type: 'error' });
+          return;
+        }
+        const closeLoading = UI.showLoading('AI 分析中(约 8-15 秒)...');
+        try {
+          const result = await AIPlanner.analyzePhysique(photos, profile);
+          closeLoading();
+          UI.showModal(`
+            <div class="sheet">
+              <div class="sheet-header">
+                <h2 style="margin:0">AI 体态分析</h2>
+                <button class="btn btn-icon" data-act="close"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+              </div>
+              <div class="sheet-body">
+                <div class="ai-result">${result.text.replace(/\n/g, '<br/>')}</div>
+                <div class="text-xs text-faint mt-16">基于${({front:'正面',side:'侧面',back:'背面'})[result.photoUsed]}照片 · qwen-vl-max</div>
+                <div class="text-xs text-faint mt-8">仅供参考,不构成医学建议。</div>
+              </div>
+            </div>
+          `, (modal, close) => {
+            modal.querySelector('[data-act="close"]').addEventListener('click', close);
+            modal.addEventListener('click', e => { if (e.target === modal) close(); });
+          });
+        } catch (e) {
+          closeLoading();
+          UI.toast('分析失败:' + e.message, { type: 'error', ttl: 3500 });
+        }
+      },
       'clear': async () => {
         const ok = await UI.confirmModal({
           title: '清除全部数据?',

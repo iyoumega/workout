@@ -49,16 +49,27 @@
     const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate()+6);
     const rangeLabel = `${weekStart.getMonth()+1}/${weekStart.getDate()} - ${weekEnd.getMonth()+1}/${weekEnd.getDate()}`;
 
+    const aiBadge = plan.generatorVersion && plan.generatorVersion.startsWith('ai')
+      ? '<span class="ai-tag">AI 生成</span>'
+      : '';
+    const aiRationale = plan.rationale ? `<div class="ai-rationale text-xs text-dim mb-12">${plan.rationale}</div>` : '';
+
     root().innerHTML = `
-      <div class="card-row mb-16">
+      <div class="card-row mb-12">
         <div>
-          <h1 style="font-size:22px; margin-bottom:2px">本周计划</h1>
+          <h1 style="font-size:22px; margin-bottom:2px">本周计划${aiBadge}</h1>
           <div class="text-dim text-sm">${rangeLabel}</div>
         </div>
-        <button class="btn btn-icon" id="regen" title="重新生成">
-          <svg viewBox="0 0 24 24" width="18" height="18"><use href="#i-refresh"/></svg>
-        </button>
+        <div class="row gap">
+          <button class="btn btn-icon" id="ai-regen" title="用 AI 生成">
+            <svg viewBox="0 0 24 24" width="18" height="18"><use href="#i-sparkles"/></svg>
+          </button>
+          <button class="btn btn-icon" id="regen" title="规则重新生成">
+            <svg viewBox="0 0 24 24" width="18" height="18"><use href="#i-refresh"/></svg>
+          </button>
+        </div>
       </div>
+      ${aiRationale}
       <div class="week-strip">${strip}</div>
       ${blocks}
     `;
@@ -144,7 +155,7 @@
     document.getElementById('regen')?.addEventListener('click', async () => {
       const ok = await UI.confirmModal({
         title: '重新生成本周计划?',
-        text: '基于当前档案重新选动作,已完成的打卡记录会保留。',
+        text: '基于当前档案、用规则重新选动作。已完成的打卡记录会保留。',
         okLabel: '重新生成',
       });
       if (!ok) return;
@@ -152,6 +163,31 @@
       await Storage.savePlan(Planner.generate(profile));
       UI.toast('计划已更新', { type: 'success', icon: 'i-check' });
       render();
+    });
+
+    document.getElementById('ai-regen')?.addEventListener('click', async () => {
+      const ok = await UI.confirmModal({
+        title: '用 AI 生成新计划?',
+        text: 'AI 会根据你的档案和重点部位重新设计 7 天计划,可能需要 5-15 秒。',
+        okLabel: '开始生成',
+      });
+      if (!ok) return;
+      const profile = await Storage.getProfile();
+      const closeLoading = UI.showLoading('AI 教练设计中...');
+      try {
+        const newPlan = await AIPlanner.generate(profile);
+        await Storage.savePlan(newPlan);
+        closeLoading();
+        if (newPlan.generatorVersion === 'ai-v1') {
+          UI.toast('AI 计划已生成', { type: 'success', icon: 'i-sparkles' });
+        } else {
+          UI.toast('AI 暂时不可用,已回退到规则计划', { type: 'error', ttl: 3500 });
+        }
+        render();
+      } catch (e) {
+        closeLoading();
+        UI.toast('AI 生成失败:' + e.message, { type: 'error', ttl: 3500 });
+      }
     });
   }
 

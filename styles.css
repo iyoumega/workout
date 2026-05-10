@@ -719,6 +719,62 @@ h3 { font-size: 16px; font-weight: 600; }
 .center { text-align: center; }
 .flex-1 { flex: 1; }
 
+/* ===== AI 元素 ===== */
+.ai-tag {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  color: #fff;
+  font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 6px;
+  margin-left: 8px;
+  vertical-align: middle;
+  letter-spacing: 1px;
+}
+.ai-rationale {
+  padding: 10px 14px;
+  background: rgba(232,93,36,0.06);
+  border-left: 2px solid var(--accent);
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ai-tip-stub, .ai-tip-card {
+  background: linear-gradient(135deg, rgba(232,93,36,0.08), rgba(232,93,36,0.02));
+  border: 1px solid rgba(232,93,36,0.18);
+}
+.ai-tip-text {
+  font-size: 14px; line-height: 1.7;
+  color: var(--text);
+}
+.ai-result {
+  font-size: 14px; line-height: 1.8;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+/* ===== Loading box ===== */
+.loading-box {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 36px;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 14px;
+  box-shadow: var(--shadow-2);
+  transform: scale(0.92);
+  transition: transform 0.2s var(--ease);
+}
+.modal.show .loading-box { transform: scale(1); }
+.loading-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; color: var(--text-dim); }
+
 /* ===== Chip grid (focus areas) ===== */
 .chip-grid {
   display: grid;

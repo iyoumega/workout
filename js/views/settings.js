@@ -49,6 +49,18 @@
             </div>
           </div>
 
+          <div class="section-title">AI 教练</div>
+          <div class="setting-row">
+            <span class="label">今日页 AI 点评</span>
+            <label class="switch">
+              <input type="checkbox" data-key-invert="aiTipDisabled" ${!s.aiTipDisabled?'checked':''} />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-row column-stack">
+            <span class="label">每次 AI 点评会调用一次接口生成个性化建议,关闭后今日页不再显示该模块</span>
+          </div>
+
           <div class="section-title">关于</div>
           <div class="setting-row">
             <span class="label">版本</span>
@@ -70,6 +82,13 @@
       modal.querySelectorAll('input[type=checkbox][data-key]').forEach(input => {
         input.addEventListener('change', async () => {
           await Storage.saveSettings({ [input.dataset.key]: input.checked });
+          UI.toast('已保存', { type: 'success', icon: 'i-check', ttl: 1200 });
+        });
+      });
+      // inverted toggles (true means disabled)
+      modal.querySelectorAll('input[type=checkbox][data-key-invert]').forEach(input => {
+        input.addEventListener('change', async () => {
+          await Storage.saveSettings({ [input.dataset.keyInvert]: !input.checked });
           UI.toast('已保存', { type: 'success', icon: 'i-check', ttl: 1200 });
         });
       });

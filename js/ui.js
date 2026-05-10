@@ -106,6 +106,23 @@
     }
   }
 
+  // ---------- Loading overlay ----------
+  function showLoading(text) {
+    const root = document.getElementById('modal-root');
+    root.innerHTML = `
+      <div class="loading-box">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">${text || '处理中...'}</div>
+      </div>
+    `;
+    root.classList.remove('hidden');
+    requestAnimationFrame(() => root.classList.add('show'));
+    return () => {
+      root.classList.remove('show');
+      setTimeout(() => { root.classList.add('hidden'); root.innerHTML = ''; }, 200);
+    };
+  }
+
   // ---------- Greeting ----------
   function greeting() {
     const h = new Date().getHours();
@@ -117,5 +134,5 @@
     return '晚安';
   }
 
-  global.UI = { toast, confirmModal, showModal, closeModal, celebrate, greeting };
+  global.UI = { toast, confirmModal, showModal, closeModal, celebrate, greeting, showLoading };
 })(window);
