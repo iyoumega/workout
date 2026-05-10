@@ -6,6 +6,10 @@
 
   async function boot() {
     try {
+      // 注册 Service Worker(只在生产环境才会真生效)
+      registerServiceWorker();
+      bindConnectivity();
+
       // 把自定义动作合并到动作库
       const custom = await Storage.getCustomExercises();
       ExerciseLib.setCustom(custom.items || []);
@@ -60,6 +64,35 @@
         await Storage.saveSettings({ a2hsDismissed: true });
       });
     }, 4000);
+  }
+
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const installing = reg.installing;
+        if (!installing) return;
+        installing.addEventListener('statechange', () => {
+          if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+            UI.toast('新版本已就绪,刷新使用', { type: 'success', icon: 'i-refresh', ttl: 4000 });
+          }
+        });
+      });
+    }).catch(e => console.warn('SW register failed:', e));
+  }
+
+  function bindConnectivity() {
+    const update = () => {
+      const online = navigator.onLine;
+      document.getElementById('offline-pill')?.classList.toggle('hidden', online);
+      if (!online) {
+        UI.toast('已离线,AI 功能暂不可用', { type: 'error', ttl: 2500 });
+      }
+    };
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    update();
   }
 
   function hideSplash() {

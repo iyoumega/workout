@@ -47,6 +47,16 @@
               <span class="slider"></span>
             </label>
           </div>
+          <div class="setting-row">
+            <span class="label">语音教练</span>
+            <label class="switch">
+              <input type="checkbox" data-key="voice" ${s.voice!==false?'checked':''} />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-row column-stack">
+            <span class="label">训练时,教练会语音报"开始""第几组""倒计时"等</span>
+          </div>
 
           <div class="section-title">日历</div>
           <div class="setting-row column-stack">

@@ -56,6 +56,10 @@
     show();
     startDurationTicker();
     render();
+    // 进入训练时打个招呼
+    AudioCue.isVoiceEnabled().then(on => {
+      if (on) AudioCue.speak('开始训练', { rate: 1.0 });
+    });
   }
 
   function show() {
@@ -67,6 +71,8 @@
     root().innerHTML = '';
     document.getElementById('tab-bar').classList.remove('hidden');
     if (state && state.tickerId) clearInterval(state.tickerId);
+    AudioCue.tickStop();
+    AudioCue.stopSpeak();
     state = null;
   }
 
@@ -82,6 +88,13 @@
         const td = document.getElementById('w-rest-display');
         if (td) td.textContent = Math.max(0, state.restRemaining);
         updateRestRing();
+        // 剩最后 3 秒时报数 + 短哔
+        if (state.restRemaining === 3 || state.restRemaining === 2 || state.restRemaining === 1) {
+          AudioCue.beep(700, 0.06);
+          AudioCue.isVoiceEnabled().then(on => {
+            if (on) AudioCue.speak(String(state.restRemaining), { rate: 1.2 });
+          });
+        }
         if (state.restRemaining <= 0) {
           finishRest(true);
         }
@@ -207,7 +220,10 @@
         <button class="btn btn-sm btn-ghost" data-act="swap-ex">
           <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-swap"/></svg>换一个
         </button>
-        <button class="btn btn-sm btn-ghost" data-act="skip-ex">跳过此动作</button>
+        <button class="btn btn-sm btn-ghost ${AudioCue.isTicking()?'metro-on':''}" data-act="metronome">
+          <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-clock"/></svg>${AudioCue.isTicking()?'节拍 ON':'节拍'}
+        </button>
+        <button class="btn btn-sm btn-ghost" data-act="skip-ex">跳过</button>
       </div>
       <div class="w-actions">
         <button class="btn btn-primary btn-block" data-act="finish-set">
@@ -225,6 +241,7 @@
     root().querySelector('[data-act="skip-ex"]').addEventListener('click', skipExercise);
     root().querySelector('[data-act="swap-ex"]')?.addEventListener('click', swapCurrentExercise);
     root().querySelector('[data-act="finish-set"]').addEventListener('click', finishSet);
+    root().querySelector('[data-act="metronome"]')?.addEventListener('click', toggleMetronome);
     root().querySelectorAll('[data-step]').forEach(btn => {
       btn.addEventListener('click', () => {
         const [field, delta] = btn.dataset.step.split(':');
@@ -234,6 +251,17 @@
         input.value = field === 'weight' ? next : Math.round(next);
       });
     });
+  }
+
+  function toggleMetronome() {
+    if (AudioCue.isTicking()) {
+      AudioCue.tickStop();
+      UI.toast('节拍器关闭', { ttl: 1200 });
+    } else {
+      AudioCue.tickStart(60); // 60 BPM = 每秒 1 拍,适合 2-1-2 配速
+      UI.toast('节拍器 60 BPM,2 秒离心 / 1 秒停 / 1 秒向心', { ttl: 2200 });
+    }
+    render(); // 更新按钮态
   }
 
   async function swapCurrentExercise() {
@@ -326,12 +354,30 @@
     state.lastWeight = weight;
     state.lastReps = reps;
 
+    // 跟上次同序号的组对比
+    showCompareToast(ex.id, state.setIdx, weight, reps);
+
     if (exLog.sets.length >= ex.sets) {
       exLog.done = true;
     }
     await Storage.saveLog(state.day.date, state.log);
 
     try { if (navigator.vibrate) navigator.vibrate(20); } catch (e) {}
+
+    // 语音鼓励
+    AudioCue.isVoiceEnabled().then(on => {
+      if (!on) return;
+      const remaining = ex.sets - exLog.sets.length;
+      let line;
+      if (remaining === 0) {
+        line = `${ex.nameZh}完成,准备下一个动作`;
+      } else if (remaining === 1) {
+        line = '还剩最后一组,坚持';
+      } else {
+        line = `第${exLog.sets.length}组完成,休息`;
+      }
+      AudioCue.speak(line, { rate: 1.0 });
+    });
 
     // 下一组 / 下一动作 / 总结
     state.setIdx++;
@@ -450,6 +496,9 @@
         if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         beep();
       } catch (e) {}
+      AudioCue.isVoiceEnabled().then(on => {
+        if (on) AudioCue.speak('开始', { rate: 1.0 });
+      });
     }
     state.phase = 'set';
     render();
@@ -493,6 +542,39 @@
     } catch (e) {
       console.error('achievements check failed', e);
       state.newAchievements = [];
+    }
+  }
+
+  function showCompareToast(exId, setIndex, weight, reps) {
+    const allLogs = state.allLogs || {};
+    // 找最近一次有该动作记录的日期(不是今天)
+    const todayKey = state.day.date;
+    const dates = Object.keys(allLogs).sort((a,b) => b.localeCompare(a));
+    let lastSet = null;
+    for (const d of dates) {
+      if (d === todayKey) continue;
+      const log = allLogs[d];
+      if (!log || !log.completedExercises) continue;
+      const entry = log.completedExercises.find(e => e.id === exId);
+      if (!entry || !entry.sets || !entry.sets.length) continue;
+      lastSet = entry.sets[setIndex] || entry.sets[entry.sets.length - 1];
+      if (lastSet) break;
+    }
+    if (!lastSet) return;
+
+    let parts = [];
+    if (weight && lastSet.weight) {
+      const dW = weight - lastSet.weight;
+      if (dW > 0) parts.push(`+${dW}kg 比上次重`);
+      else if (dW === 0) parts.push('同重量');
+    }
+    if (reps && lastSet.reps) {
+      const dR = reps - lastSet.reps;
+      if (dR > 0) parts.push(`多做 ${dR} 次`);
+      else if (dR === 0 && weight && lastSet.weight && weight > lastSet.weight) parts.push('次数稳住');
+    }
+    if (parts.length) {
+      UI.toast(parts.join(' · '), { type: 'success', icon: 'i-flash', ttl: 2200 });
     }
   }
 
@@ -591,6 +673,8 @@
 
         ${newAchHtml}
 
+        ${cooldownSection(day)}
+
         <div class="onboarding-actions">
           <button class="btn btn-primary btn-block" data-act="done">完成</button>
         </div>
@@ -618,6 +702,43 @@
       hide();
       onFinish(finishedLog);
     });
+  }
+
+  function cooldownSection(day) {
+    // 根据当天涉及的肌群挑 2-3 个轻拉伸
+    const muscleSet = new Set();
+    (day.exercises || []).forEach(e => {
+      const def = ExerciseLib.findById(e.id);
+      if (def) (def.muscleKeys || []).forEach(k => muscleSet.add(k));
+    });
+    const stretchPool = [
+      { id: 'cat_cow', match: ['back','core'] },
+      { id: 'world_greatest_stretch', match: ['shoulders','quads','core'] },
+      { id: 'leg_swing', match: ['quads','hamstrings','glutes'] },
+      { id: 'shoulder_dislocate', match: ['shoulders','chest'] },
+      { id: 'hip_flexor_stretch', match: ['quads','glutes'] },
+      { id: 'child_pose', match: ['back'] },
+    ];
+    const picked = stretchPool
+      .filter(p => p.match.some(m => muscleSet.has(m)))
+      .map(p => ExerciseLib.findById(p.id))
+      .filter(Boolean)
+      .slice(0, 3);
+    if (!picked.length) return '';
+    return `
+      <div class="section-title">练完顺手拉伸</div>
+      ${picked.map(s => `
+        <div class="card recovery-item">
+          <div class="card-row">
+            <div>
+              <div class="fw-600">${s.nameZh}</div>
+              <div class="text-xs text-dim">${(s.muscles||[]).join(' · ')}</div>
+            </div>
+          </div>
+          <div class="text-sm text-dim mt-8">${(s.tips||[]).join(' · ')}</div>
+        </div>
+      `).join('')}
+    `;
   }
 
   // ---------- helpers ----------

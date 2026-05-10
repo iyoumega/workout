@@ -106,9 +106,10 @@
     }
   }
 
-  // ---------- Loading overlay ----------
+  // ---------- Loading overlay (独立容器,不与 modal 冲突)----------
   function showLoading(text) {
-    const root = document.getElementById('modal-root');
+    const root = document.getElementById('loading-root');
+    if (!root) return () => {};
     root.innerHTML = `
       <div class="loading-box">
         <div class="loading-spinner"></div>
@@ -117,9 +118,16 @@
     `;
     root.classList.remove('hidden');
     requestAnimationFrame(() => root.classList.add('show'));
+    let closed = false;
     return () => {
+      if (closed) return;
+      closed = true;
       root.classList.remove('show');
-      setTimeout(() => { root.classList.add('hidden'); root.innerHTML = ''; }, 200);
+      setTimeout(() => {
+        if (!closed) return; // 防止后面又 show 了
+        root.classList.add('hidden');
+        root.innerHTML = '';
+      }, 220);
     };
   }
 

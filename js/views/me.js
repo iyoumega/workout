@@ -107,6 +107,9 @@
           `).join('')}
         </div>` : ''}
 
+      <div class="section-title">训练量趋势</div>
+      ${renderVolumeChart(logs)}
+
       <div class="section-title row between" style="align-items:baseline">
         <span>最近 13 周</span>
         <span class="text-xs text-dim">点击查看当天</span>
@@ -291,6 +294,97 @@
           <svg viewBox="0 0 24 24" width="16" height="16"><use href="#i-clock"/></svg>
           历史对比
         </button>
+      </div>
+    `;
+  }
+
+  function renderVolumeChart(logs) {
+    // 最近 8 周的总训练量 = sum(weight × reps);也算"训练次数"作为后备
+    const weeks = 8;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const start = Planner.getMonday(today);
+    start.setDate(start.getDate() - (weeks - 1) * 7);
+
+    const weekData = [];
+    for (let w = 0; w < weeks; w++) {
+      let volume = 0;
+      let count = 0;
+      for (let d = 0; d < 7; d++) {
+        const date = new Date(start);
+        date.setDate(start.getDate() + w * 7 + d);
+        const key = Planner.toDateKey(date);
+        const log = logs[key];
+        if (!log || !log.completedAt) continue;
+        count++;
+        (log.completedExercises || []).forEach(e => {
+          (e.sets || []).forEach(s => {
+            if (s.weight && s.reps) volume += s.weight * s.reps;
+          });
+        });
+      }
+      const weekStart = new Date(start);
+      weekStart.setDate(start.getDate() + w * 7);
+      weekData.push({ weekStart: Planner.toDateKey(weekStart), volume, count });
+    }
+
+    const hasVolume = weekData.some(w => w.volume > 0);
+    const totalCount = weekData.reduce((s, w) => s + w.count, 0);
+    if (!hasVolume && totalCount === 0) {
+      return `<div class="card center text-dim text-sm">完成几次训练后,这里会显示你的训练量趋势</div>`;
+    }
+
+    // 数据轴:有重量数据用 volume,否则用 count
+    const useVolume = hasVolume;
+    const values = weekData.map(w => useVolume ? w.volume : w.count);
+    const max = Math.max(...values) || 1;
+
+    const W = 320, H = 110;
+    const padX = 12, padY = 14;
+    const barWidth = (W - 2 * padX) / weeks;
+
+    const bars = weekData.map((w, i) => {
+      const v = values[i];
+      const h = (v / max) * (H - 2 * padY);
+      const x = padX + i * barWidth + barWidth * 0.15;
+      const bw = barWidth * 0.7;
+      const y = H - padY - h;
+      const isThisWeek = i === weeks - 1;
+      const fill = isThisWeek ? 'url(#vol-grad-active)' : 'url(#vol-grad)';
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(2, h).toFixed(1)}" fill="${fill}" rx="3"/>`;
+    }).join('');
+
+    // 轴标签:第一周和最后一周
+    const firstLabel = weekData[0].weekStart.slice(5);
+    const lastLabel = '本周';
+
+    const totalVolume = weekData.reduce((s, w) => s + w.volume, 0);
+    const totalSessions = weekData.reduce((s, w) => s + w.count, 0);
+
+    return `
+      <div class="card volume-chart-card">
+        <div class="row between mb-8">
+          <div>
+            <div class="text-xs text-dim">8 周累计</div>
+            <div class="fw-600">${totalSessions} 次 · ${useVolume ? Math.round(totalVolume) + 'kg' : ''}</div>
+          </div>
+          <div class="text-xs text-dim">${useVolume ? '总训练量(kg)' : '训练次数'}</div>
+        </div>
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="volume-chart">
+          <defs>
+            <linearGradient id="vol-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.85"/>
+              <stop offset="100%" stop-color="#a78bfa" stop-opacity="0.35"/>
+            </linearGradient>
+            <linearGradient id="vol-grad-active" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ff5b9c" stop-opacity="1"/>
+              <stop offset="100%" stop-color="#E85D24" stop-opacity="0.6"/>
+            </linearGradient>
+          </defs>
+          ${bars}
+        </svg>
+        <div class="row between text-xs text-faint">
+          <span>${firstLabel}</span><span>${lastLabel}</span>
+        </div>
       </div>
     `;
   }

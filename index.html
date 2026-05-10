@@ -168,6 +168,11 @@
       <button data-action="dismiss-warning"><svg viewBox="0 0 24 24" width="16" height="16"><use href="#i-x"/></svg></button>
     </div>
 
+    <!-- 离线状态徽标 -->
+    <div id="offline-pill" class="offline-pill hidden">
+      <span class="offline-dot"></span>离线
+    </div>
+
     <!-- 引导问卷容器 -->
     <div id="onboarding-root" class="screen hidden"></div>
 
@@ -225,6 +230,9 @@
     <!-- 通用模态 -->
     <div id="modal-root" class="modal hidden"></div>
 
+    <!-- 独立 loading 容器(避免和模态冲突)-->
+    <div id="loading-root" class="loading-overlay hidden"></div>
+
     <!-- 浮动聊天教练按钮 -->
     <button id="chat-fab" class="chat-fab hidden" title="问问教练">
       <svg viewBox="0 0 24 24" width="22" height="22"><use href="#i-chat"/></svg>
@@ -254,6 +262,8 @@
   <script src="js/achievements.js"></script>
   <script src="js/ai.js"></script>
   <script src="js/ai_planner.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/quotes.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/views/onboarding.js"></script>
   <script src="js/views/workout.js"></script>

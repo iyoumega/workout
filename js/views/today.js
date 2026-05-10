@@ -23,8 +23,8 @@
       root().innerHTML = `
         <div class="empty">
           <div class="empty-icon"><svg viewBox="0 0 24 24"><use href="#i-dumbbell"/></svg></div>
-          <div class="empty-title">还没有训练计划</div>
-          <div class="empty-sub">完成档案后会自动生成</div>
+          <div class="empty-title">先聊一下吧</div>
+          <div class="empty-sub">填一份档案,就给你做计划</div>
         </div>`;
       return;
     }
@@ -34,7 +34,8 @@
       root().innerHTML = `
         <div class="empty">
           <div class="empty-icon"><svg viewBox="0 0 24 24"><use href="#i-plan"/></svg></div>
-          <div class="empty-title">今天不在计划范围内</div>
+          <div class="empty-title">这一天还没排</div>
+          <div class="empty-sub">去"计划"重新生成下一周</div>
         </div>`;
       return;
     }
@@ -240,6 +241,7 @@
         </div>
       </div>
       ${heroBlock}
+      ${quoteBlock()}
       ${moodBlock}
       ${bodyMapBlock(day)}
       <div id="ai-tip-slot"></div>
@@ -454,6 +456,18 @@
     });
   }
 
+  function quoteBlock() {
+    if (!global.Quotes) return '';
+    const q = Quotes.today();
+    return `
+      <div class="quote-card">
+        <div class="quote-mark">"</div>
+        <div class="quote-text">${q.text}</div>
+        <div class="quote-by">— ${q.by}</div>
+      </div>
+    `;
+  }
+
   function bodyMapBlock(day) {
     const muscles = new Set();
     (day.exercises || []).forEach(e => (e.muscles || []).forEach(() => {}));
@@ -499,15 +513,20 @@
   function bindEvents(day, log, plan) {
     const todayKey = Planner.toDateKey(new Date());
 
-    document.getElementById('start-workout')?.addEventListener('click', () => {
-      WorkoutMode.start(day, log, {
+    document.getElementById('start-workout')?.addEventListener('click', async () => {
+      await WorkoutMode.start(day, log, {
         onFinish: async (finishedLog) => {
-          // 重新渲染本视图
           await render();
-          // 如果完成了全部,显示庆祝并触发新成就提示
           if (finishedLog.completedAt) {
             const totalSets = (finishedLog.completedExercises || []).reduce((s, e) => s + (e.sets ? e.sets.length : 0), 0);
-            UI.celebrate(`${day.title} · ${totalSets} 组 · 干得漂亮`);
+            UI.celebrate(`${day.title} · ${totalSets} 组完成`);
+            // AI 寄语异步替换
+            try {
+              const profile = await Storage.getProfile();
+              const res = await AIPlanner.postWorkout(profile, day, finishedLog);
+              const sub = document.getElementById('celebration-sub');
+              if (sub && res.text) sub.textContent = res.text;
+            } catch (e) {}
           }
         },
       });
