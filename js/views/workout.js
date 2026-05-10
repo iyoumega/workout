@@ -358,6 +358,8 @@
 
     // 跟上次同序号的组对比
     showCompareToast(ex.id, state.setIdx, weight, reps);
+    // PR 检测
+    detectAndCelebratePR(ex, weight, reps);
 
     if (exLog.sets.length >= ex.sets) {
       exLog.done = true;
@@ -544,6 +546,34 @@
     } catch (e) {
       console.error('achievements check failed', e);
       state.newAchievements = [];
+    }
+  }
+
+  function detectAndCelebratePR(ex, weight, reps) {
+    if (!weight || !reps) return;
+    const allLogs = state.allLogs || {};
+    let bestWeight = 0, bestRepsAtBest = 0;
+    Object.entries(allLogs).forEach(([d, log]) => {
+      if (d === state.day.date) return;
+      if (!log || !log.completedExercises) return;
+      const entry = log.completedExercises.find(e => e.id === ex.id);
+      if (!entry) return;
+      (entry.sets || []).forEach(s => {
+        if (!s.weight || !s.reps) return;
+        if (s.weight > bestWeight || (s.weight === bestWeight && s.reps > bestRepsAtBest)) {
+          bestWeight = s.weight;
+          bestRepsAtBest = s.reps;
+        }
+      });
+    });
+    if (bestWeight === 0) return; // 第一次有重量,不算 PR
+    if (weight > bestWeight || (weight === bestWeight && reps > bestRepsAtBest)) {
+      try { if (navigator.vibrate) navigator.vibrate([60,30,60,30,150]); } catch(e){}
+      AudioCue.beep(1200, 0.18);
+      AudioCue.isVoiceEnabled().then(on => {
+        if (on) AudioCue.speak(`新纪录,${ex.nameZh} ${weight}公斤`, { rate: 1.0 });
+      });
+      UI.toast(`🏆 新 PR · ${ex.nameZh} ${weight}kg×${reps}`, { type: 'success', icon: 'i-trophy', ttl: 3500 });
     }
   }
 

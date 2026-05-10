@@ -172,7 +172,14 @@
       t.classList.toggle('active', t.dataset.tab === name);
     });
     ['today','plan','me'].forEach(n => {
-      document.getElementById('view-' + n).classList.toggle('hidden', n !== name);
+      const el = document.getElementById('view-' + n);
+      el.classList.toggle('hidden', n !== name);
+      if (n === name) {
+        // 重启进入动画
+        el.classList.remove('view-anim');
+        void el.offsetWidth;
+        el.classList.add('view-anim');
+      }
     });
     if (name === 'today') await TodayView.render();
     if (name === 'plan')  await PlanView.render();

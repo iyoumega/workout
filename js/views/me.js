@@ -99,13 +99,22 @@
       ${prs.length > 0 ? `
         <div class="section-title">个人最佳</div>
         <div class="card">
-          ${prs.slice(0, 5).map(pr => `
-            <div class="pr-row">
-              <strong>${pr.name}</strong>
-              <span class="text-accent fw-600">${pr.weight}kg × ${pr.reps}</span>
-            </div>
-          `).join('')}
+          ${prs.slice(0, 5).map(pr => {
+            // Epley 1RM 估算: 1RM ≈ w × (1 + r/30)
+            const oneRM = Math.round(pr.weight * (1 + pr.reps / 30));
+            return `
+              <div class="pr-row">
+                <div>
+                  <strong>${pr.name}</strong>
+                  <div class="text-xs text-faint">估 1RM ≈ ${oneRM}kg</div>
+                </div>
+                <span class="text-accent fw-600">${pr.weight}kg × ${pr.reps}</span>
+              </div>
+            `;
+          }).join('')}
         </div>` : ''}
+
+      ${renderMoodPattern(logs)}
 
       <div class="section-title">训练量趋势</div>
       ${renderVolumeChart(logs)}
@@ -295,6 +304,49 @@
           <svg viewBox="0 0 24 24" width="16" height="16"><use href="#i-clock"/></svg>
           历史对比
         </button>
+      </div>
+    `;
+  }
+
+  function renderMoodPattern(logs) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const days = 14;
+    const cells = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const k = Planner.toDateKey(d);
+      const log = logs[k];
+      const mood = log && log.mood ? log.mood : null;
+      cells.push({ date: k, mood, day: d });
+    }
+    const hasAny = cells.some(c => c.mood);
+    if (!hasAny) return '';
+
+    const colorFor = m => ({
+      great: 'var(--color-leaf)',
+      ok:    'var(--color-flash)',
+      tired: 'var(--color-fire)',
+      sore:  'var(--color-rose)',
+      low:   'var(--color-violet)',
+    })[m] || 'rgba(255,255,255,0.06)';
+    const labelFor = m => ({great:'好',ok:'一般',tired:'累',sore:'酸',low:'低'})[m] || '-';
+
+    return `
+      <div class="section-title">最近两周心情</div>
+      <div class="card mood-pattern-card">
+        <div class="mood-pattern">
+          ${cells.map(c => `
+            <div class="mood-cell" style="background:${colorFor(c.mood)};opacity:${c.mood?1:0.25}" title="${c.date} ${labelFor(c.mood)}"></div>
+          `).join('')}
+        </div>
+        <div class="mood-legend">
+          <span><i style="background:var(--color-leaf)"></i>好</span>
+          <span><i style="background:var(--color-flash)"></i>一般</span>
+          <span><i style="background:var(--color-fire)"></i>累</span>
+          <span><i style="background:var(--color-rose)"></i>酸</span>
+          <span><i style="background:var(--color-violet)"></i>低</span>
+        </div>
       </div>
     `;
   }

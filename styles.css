@@ -161,6 +161,8 @@ svg { fill: none; stroke: currentColor; }
   padding: 16px;
   max-width: 720px;
   margin: 0 auto;
+}
+.view.view-anim {
   animation: view-in 0.28s var(--ease);
 }
 @keyframes view-in {
@@ -282,6 +284,12 @@ h3 { font-size: 16px; font-weight: 600; }
 }
 .option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .option-grid .option { text-align: center; flex-direction: column; padding: 18px 12px; }
+.gender-option svg {
+  margin-bottom: 6px;
+  color: var(--text-dim);
+  transition: color 0.2s var(--ease);
+}
+.gender-option.selected svg { color: var(--accent); }
 
 /* ===== 引导进度点 ===== */
 .onboarding-progress {
@@ -521,21 +529,38 @@ h3 { font-size: 16px; font-weight: 600; }
 .week-strip::-webkit-scrollbar { display: none; }
 .day-pill {
   flex: 0 0 auto;
-  min-width: 64px; padding: 12px 8px;
-  background: var(--card); border-radius: 12px;
+  min-width: 70px; padding: 12px 8px;
+  background: var(--card);
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
   text-align: center;
-  border: 2px solid transparent;
   cursor: pointer;
   scroll-snap-align: start;
-  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease), transform 0.15s var(--ease);
+  position: relative;
+  overflow: hidden;
 }
-.day-pill.today { border-color: var(--accent); }
-.day-pill.done { background: rgba(74,222,128,0.08); }
-.day-pill .dow { font-size: 11px; color: var(--text-dim); }
-.day-pill .date { font-size: 17px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
-.day-pill .type { font-size: 11px; color: var(--accent); margin-top: 4px; font-weight: 600; }
+.day-pill:active { transform: scale(0.96); }
+.day-pill.today {
+  border-color: transparent;
+  background: var(--grad-warm);
+  background-size: 180% 180%;
+  animation: hero-shift 8s ease infinite;
+  box-shadow: 0 8px 22px rgba(232,93,36,0.4);
+}
+.day-pill.today .dow,
+.day-pill.today .date,
+.day-pill.today .type { color: #fff !important; }
+.day-pill.done:not(.today) {
+  background: linear-gradient(140deg, var(--card), rgba(74,222,128,0.10));
+  border-color: rgba(74,222,128,0.25);
+}
+.day-pill .dow { font-size: 11px; color: var(--text-dim); position: relative; z-index: 1; }
+.day-pill .date { font-size: 18px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; position: relative; z-index: 1; }
+.day-pill .type { font-size: 11px; color: var(--color-fire); margin-top: 4px; font-weight: 600; position: relative; z-index: 1; }
 .day-pill .type.rest { color: var(--text-faint); }
-.day-pill .check { color: var(--success); font-size: 11px; margin-top: 2px; }
+.day-pill .check { color: var(--success); font-size: 11px; margin-top: 2px; position: relative; z-index: 1; }
+.day-pill.today .check { color: #fff; }
 
 .day-block {
   background: var(--card); border-radius: 14px;
@@ -1350,6 +1375,32 @@ h3 { font-size: 16px; font-weight: 600; }
 .a2hs-banner.show { transform: translateY(0); opacity: 1; }
 .a2hs-text { flex: 1; font-size: 13px; }
 .a2hs-text strong { display: block; margin-bottom: 2px; }
+
+/* ===== 心情轨迹 ===== */
+.mood-pattern-card { padding: 14px 16px; }
+.mood-pattern {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.mood-cell {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  transition: transform 0.15s var(--ease);
+}
+.mood-cell:active { transform: scale(0.85); }
+.mood-legend {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.mood-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.mood-legend i {
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
 
 /* ===== BPM 小提示 ===== */
 .bpm-hint {

@@ -193,10 +193,12 @@
       <div class="field">
         <label>性别</label>
         <div class="option-grid">
-          <div class="option ${b.gender==='male'?'selected':''}" data-gender="male">
+          <div class="option gender-option ${b.gender==='male'?'selected':''}" data-gender="male">
+            <svg viewBox="0 0 24 24" width="24" height="24"><use href="#i-male"/></svg>
             <div class="option-title">男</div>
           </div>
-          <div class="option ${b.gender==='female'?'selected':''}" data-gender="female">
+          <div class="option gender-option ${b.gender==='female'?'selected':''}" data-gender="female">
+            <svg viewBox="0 0 24 24" width="24" height="24"><use href="#i-female"/></svg>
             <div class="option-title">女</div>
           </div>
         </div>
