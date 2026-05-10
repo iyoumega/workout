@@ -124,11 +124,47 @@
       closed = true;
       root.classList.remove('show');
       setTimeout(() => {
-        if (!closed) return; // 防止后面又 show 了
+        if (!closed) return;
         root.classList.add('hidden');
         root.innerHTML = '';
       }, 220);
     };
+  }
+
+  // 用教练名格式化 loading 文本(异步,失败 fallback 通用文案)
+  async function showLoadingWithCoach(verb) {
+    let coachName = '教练';
+    try {
+      const s = await Storage.getSettings();
+      coachName = s.coachName || '教练';
+    } catch (e) {}
+    return showLoading(`${coachName}${verb || '思考中'}…`);
+  }
+
+  // ---------- 数字 count-up ----------
+  function countUp(el, target, opts) {
+    if (!el) return;
+    target = Number(target) || 0;
+    const dur = (opts && opts.duration) || 800;
+    const start = Number(el.dataset.countFrom) || 0;
+    const startedAt = performance.now();
+    function frame(now) {
+      const t = Math.min(1, (now - startedAt) / dur);
+      // ease out cubic
+      const e = 1 - Math.pow(1 - t, 3);
+      const v = Math.round(start + (target - start) * e);
+      el.textContent = v;
+      if (t < 1) requestAnimationFrame(frame);
+      else el.dataset.countFrom = target;
+    }
+    requestAnimationFrame(frame);
+  }
+  function applyCountUp(rootEl) {
+    const targets = (rootEl || document).querySelectorAll('[data-count-target]');
+    targets.forEach(el => {
+      const target = Number(el.dataset.countTarget);
+      countUp(el, target);
+    });
   }
 
   // ---------- Greeting ----------
@@ -142,5 +178,5 @@
     return '晚安';
   }
 
-  global.UI = { toast, confirmModal, showModal, closeModal, celebrate, greeting, showLoading };
+  global.UI = { toast, confirmModal, showModal, closeModal, celebrate, greeting, showLoading, showLoadingWithCoach, countUp, applyCountUp };
 })(window);

@@ -58,17 +58,17 @@
       <div class="stat-row">
         <div class="stat">
           <div class="stat-icon"><svg viewBox="0 0 24 24"><use href="#i-fire"/></svg></div>
-          <div class="stat-value ${stats.streak > 0 ? 'streak-active' : ''}">${stats.streak}</div>
+          <div class="stat-value ${stats.streak > 0 ? 'streak-active' : ''}" data-count-target="${stats.streak}">0</div>
           <div class="stat-label">连续打卡</div>
         </div>
         <div class="stat">
           <div class="stat-icon"><svg viewBox="0 0 24 24"><use href="#i-flash"/></svg></div>
-          <div class="stat-value">${stats.totalSessions}</div>
+          <div class="stat-value" data-count-target="${stats.totalSessions}">0</div>
           <div class="stat-label">总训练</div>
         </div>
         <div class="stat">
           <div class="stat-icon"><svg viewBox="0 0 24 24"><use href="#i-clock"/></svg></div>
-          <div class="stat-value">${stats.thisMonth}</div>
+          <div class="stat-value" data-count-target="${stats.thisMonth}">0</div>
           <div class="stat-label">本月</div>
         </div>
       </div>
@@ -180,6 +180,7 @@
     `;
 
     bindEvents();
+    UI.applyCountUp(root());
   }
 
   function renderWeightCard(weights) {
@@ -536,7 +537,7 @@
         });
         if (!ok) return;
         const profile = await Storage.getProfile();
-        const closeLoading = UI.showLoading('AI 教练设计中...');
+        const closeLoading = await UI.showLoadingWithCoach('正在设计计划');
         try {
           const newPlan = await AIPlanner.generate(profile);
           await Storage.savePlan(newPlan);
@@ -572,7 +573,7 @@
           UI.toast('需要先上传体态照片', { type: 'error' });
           return;
         }
-        const closeLoading = UI.showLoading('AI 分析中(约 8-15 秒)...');
+        const closeLoading = await UI.showLoadingWithCoach('正在看你的体态(约 8-15 秒)');
         try {
           const result = await AIPlanner.analyzePhysique(photos, profile);
           closeLoading();
@@ -791,7 +792,7 @@
     };
 
     const fetchJournal = async () => {
-      const closeLoading = UI.showLoading('AI 教练正在写日记...');
+      const closeLoading = await UI.showLoadingWithCoach('正在写日记');
       try {
         const result = await AIPlanner.weeklyJournal(weekStart);
         await Storage.saveJournal(weekStart, result.text);

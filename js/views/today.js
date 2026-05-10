@@ -575,7 +575,7 @@
           // 调 AI 给建议
           try {
             const profile = await Storage.getProfile();
-            const closeLoading = UI.showLoading(`${(await AIPlanner.getCoachIdentity()).name}思考中...`);
+            const closeLoading = await UI.showLoadingWithCoach('在听你说');
             const advice = await AIPlanner.moodAdvice(profile, day, mood);
             const coach = await AIPlanner.getCoachIdentity();
             log.moodAdvice = { mood, text: advice.text, coach: coach.name, at: new Date().toISOString() };

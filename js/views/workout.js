@@ -159,6 +159,7 @@
           <span>动作 ${exIdx + 1} / ${day.exercises.length}</span>
           <span>·</span>
           <span>第 <strong>${setIdx + 1}</strong> 组 / ${totalSets}</span>
+          ${exIdx === 0 && setIdx === 0 ? `<span class="bpm-hint">${suggestBpm(day.type)}</span>` : ''}
         </div>
         <div class="w-exercise-name">
           ${ex.nameZh}
@@ -168,6 +169,7 @@
         <div class="muscle-tags mt-12">
           ${ex.muscles.map(m => `<span class="muscle-tag">${m}</span>`).join('')}
         </div>
+        ${renderActiveMuscle(ex)}
 
         <div class="w-target">
           <div class="w-target-row"><span>目标</span><strong>${ex.reps} 次</strong></div>
@@ -702,6 +704,25 @@
       hide();
       onFinish(finishedLog);
     });
+  }
+
+  function suggestBpm(dayType) {
+    const map = {
+      push: '🎵 130-145 BPM',
+      pull: '🎵 130-145 BPM',
+      legs: '🎵 140-160 BPM 推荐高燃',
+      upper: '🎵 130-145 BPM',
+      lower: '🎵 140-160 BPM',
+      fullbody: '🎵 140-160 BPM',
+    };
+    return map[dayType] || '';
+  }
+
+  function renderActiveMuscle(ex) {
+    const def = ExerciseLib.findById(ex.id);
+    if (!def || !def.muscleKeys || !def.muscleKeys.length) return '';
+    if (typeof BodyMap === 'undefined') return '';
+    return `<div class="w-bodymap">${BodyMap.render(def.muscleKeys)}</div>`;
   }
 
   function cooldownSection(day) {

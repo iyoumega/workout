@@ -173,7 +173,7 @@
       });
       if (!ok) return;
       const profile = await Storage.getProfile();
-      const closeLoading = UI.showLoading('AI 教练设计中...');
+      const closeLoading = await UI.showLoadingWithCoach('正在设计计划');
       try {
         const newPlan = await AIPlanner.generate(profile);
         await Storage.savePlan(newPlan);

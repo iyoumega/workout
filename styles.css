@@ -93,29 +93,66 @@ svg { fill: none; stroke: currentColor; }
 /* ===== Splash ===== */
 .splash {
   position: fixed; inset: 0;
-  background: var(--bg);
+  background: radial-gradient(circle at 30% 30%, #2a1530, var(--bg) 60%);
   z-index: 999;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  gap: 14px;
-  transition: opacity 0.35s var(--ease);
+  gap: 16px;
+  transition: opacity 0.4s var(--ease);
+  overflow: hidden;
+}
+.splash::before, .splash::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.splash::before {
+  width: 220px; height: 220px;
+  background: var(--color-fire);
+  left: -60px; top: -60px;
+  animation: orb 6s ease-in-out infinite;
+}
+.splash::after {
+  width: 260px; height: 260px;
+  background: var(--accent-pink);
+  right: -80px; bottom: -80px;
+  animation: orb 6s ease-in-out infinite reverse;
+}
+@keyframes orb {
+  0%, 100% { transform: translate(0,0) scale(1); }
+  50% { transform: translate(30px, -20px) scale(1.15); }
 }
 .splash-icon {
-  color: var(--accent);
-  filter: drop-shadow(0 0 24px var(--accent-glow));
-  animation: splash-pulse 1.4s var(--ease) infinite;
+  width: 84px; height: 84px;
+  border-radius: 24px;
+  background: var(--grad-warm);
+  background-size: 200% 200%;
+  animation: hero-shift 4s ease infinite, splash-pulse 2.4s ease-in-out infinite;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  filter: drop-shadow(0 8px 32px rgba(232,93,36,0.55));
+  position: relative;
+  z-index: 1;
+}
+.splash-icon svg {
+  width: 44px; height: 44px;
+  color: #fff;
 }
 .splash-title {
   color: var(--text);
-  font-size: 18px;
-  letter-spacing: 6px;
+  font-size: 17px;
+  letter-spacing: 8px;
   font-weight: 500;
-  opacity: 0.85;
+  opacity: 0.9;
+  position: relative; z-index: 1;
 }
 .splash.fading { opacity: 0; pointer-events: none; }
 @keyframes splash-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.05); opacity: 0.7; }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
 }
 
 /* ===== 主布局 ===== */
@@ -1313,6 +1350,21 @@ h3 { font-size: 16px; font-weight: 600; }
 .a2hs-banner.show { transform: translateY(0); opacity: 1; }
 .a2hs-text { flex: 1; font-size: 13px; }
 .a2hs-text strong { display: block; margin-bottom: 2px; }
+
+/* ===== BPM 小提示 ===== */
+.bpm-hint {
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: rgba(167,139,250,0.15);
+  color: var(--color-violet);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+/* ===== Workout 内嵌 bodymap ===== */
+.w-bodymap { margin-top: 14px; }
+.w-bodymap .bodymap-card { padding: 10px; }
+.w-bodymap .bodymap-svg { width: 60px; }
 
 /* ===== 训练量曲线卡 ===== */
 .volume-chart-card { padding: 14px; }
