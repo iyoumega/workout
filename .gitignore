@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Claude Code 内部目录
+.claude/
+
+# 工作目录里其他无关文件夹
+workout app/
+捡蛤蜊/
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# 备份
+*-backup-*.json
