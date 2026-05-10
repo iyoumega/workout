@@ -1380,6 +1380,69 @@ h3 { font-size: 16px; font-weight: 600; }
 }
 .setting-input:focus { border-color: var(--accent); }
 
+/* ===== 照片时间序列 ===== */
+.timeline-session {
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+.timeline-photos {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+.timeline-photos img {
+  width: 100%;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.timeline-photo-empty {
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: var(--bg-elev);
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+}
+
+/* ===== 训练总结教练寄语 ===== */
+.w-coach-message {
+  text-align: center;
+  margin-top: 14px;
+  padding: 12px 18px;
+  background: rgba(232,93,36,0.08);
+  border-left: 2px solid var(--accent);
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+  min-height: 24px;
+  font-style: italic;
+}
+.w-coach-message:empty { display: none; }
+
+/* ===== 聊天浮动按钮 ===== */
+.chat-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--tab-bar-h) + var(--safe-bottom) + 16px);
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 20px rgba(232,93,36,0.4);
+  z-index: 45;
+  transition: transform 0.15s var(--ease), box-shadow 0.2s var(--ease);
+}
+.chat-fab:active {
+  transform: scale(0.94);
+  box-shadow: 0 3px 10px rgba(232,93,36,0.3);
+}
+
 /* ===== Body map ===== */
 .bodymap-card { padding: 14px 16px; }
 .bodymap-row {

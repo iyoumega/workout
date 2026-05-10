@@ -3,7 +3,7 @@
  * Renders into #onboarding-root.
  */
 (function (global) {
-  const QUESTION_STEPS = 7; // basics / goal / experience / days / venue / focus / photos
+  const QUESTION_STEPS = 8; // basics / goal / experience / days / venue / focus / coach / photos
   const PHASES = ['welcome', 'questions', 'ready'];
 
   const state = {
@@ -17,6 +17,7 @@
       venue: null,
       focusAreas: [],
     },
+    coach: { name: '小橙', tone: 'friendly' },
     photos: { front: null, side: null, back: null },
     onComplete: null,
     isEdit: false,
@@ -29,7 +30,6 @@
     state.step = 0;
     state.onComplete = onComplete;
     state.isEdit = !!opts.isEdit;
-    // 重置默认值
     state.profile = {
       basics: { gender: 'male', age: '', height: '', weight: '' },
       goal: null,
@@ -38,11 +38,15 @@
       venue: null,
       focusAreas: [],
     };
+    state.coach = { name: '小橙', tone: 'friendly' };
     state.photos = { front: null, side: null, back: null };
     if (opts.preset) {
       const merged = JSON.parse(JSON.stringify(opts.preset));
       if (!merged.focusAreas) merged.focusAreas = [];
       state.profile = merged;
+    }
+    if (opts.coach) {
+      state.coach = { name: opts.coach.name || '小橙', tone: opts.coach.tone || 'friendly' };
     }
     root().classList.remove('hidden');
     render();
@@ -145,8 +149,39 @@
     if (i === 3) return stepDays();
     if (i === 4) return stepVenue();
     if (i === 5) return stepFocus();
-    if (i === 6) return stepPhotos();
+    if (i === 6) return stepCoach();
+    if (i === 7) return stepPhotos();
     return '';
+  }
+
+  function stepCoach() {
+    const tones = [
+      { v: 'friendly', t: '亲和', d: '温和、像可靠的朋友' },
+      { v: 'strict',   t: '严师', d: '直接、严格、不啰嗦' },
+      { v: 'playful',  t: '俏皮', d: '幽默、有梗、不失专业' },
+      { v: 'gentle',   t: '温柔', d: '耐心、鼓励性强' },
+    ];
+    return `
+      <h1>给教练起个名字</h1>
+      <p class="text-dim mb-16">这是 AI 教练,会陪你训练、写日记、给建议。</p>
+      <div class="field">
+        <label>教练昵称</label>
+        <input id="ob-coach-name" type="text" maxlength="10" value="${(state.coach.name||'').replace(/"/g,'&quot;')}" placeholder="如 小橙、阿强、Tony" />
+      </div>
+      <div class="field">
+        <label>教练语气</label>
+        <div class="option-list">
+          ${tones.map(o => `
+            <div class="option ${state.coach.tone===o.v?'selected':''}" data-tone="${o.v}">
+              <div>
+                <div class="option-title">${o.t}</div>
+                <div class="option-desc">${o.d}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
   }
 
   function stepBasics() {
@@ -357,6 +392,15 @@
       });
     }
     if (i === 6) {
+      const nameInput = document.getElementById('ob-coach-name');
+      nameInput?.addEventListener('input', () => {
+        state.coach.name = nameInput.value.trim() || '小橙';
+      });
+      root().querySelectorAll('[data-tone]').forEach(el => {
+        el.addEventListener('click', () => { state.coach.tone = el.dataset.tone; render(); });
+      });
+    }
+    if (i === 7) {
       root().querySelectorAll('input[type=file][data-photo]').forEach(input => {
         input.addEventListener('change', async (e) => {
           const file = e.target.files[0];
@@ -383,7 +427,8 @@
     if (i === 3) return !!state.profile.daysPerWeek;
     if (i === 4) return !!state.profile.venue;
     if (i === 5) return true;  // focus areas optional
-    if (i === 6) return true;  // photos optional
+    if (i === 6) return !!(state.coach.name && state.coach.tone);
+    if (i === 7) return true;  // photos optional
     return false;
   }
 
@@ -431,6 +476,7 @@
         <div class="ob-summary-row"><span class="k">每周</span><span class="v">${p.daysPerWeek} 天</span></div>
         <div class="ob-summary-row"><span class="k">场地</span><span class="v">${venueLabels[p.venue]}</span></div>
         <div class="ob-summary-row"><span class="k">重点</span><span class="v">${focusLabels.length ? focusLabels.join(' · ') : '全身均衡'}</span></div>
+        <div class="ob-summary-row"><span class="k">教练</span><span class="v">${state.coach.name} · ${({friendly:'亲和',strict:'严师',playful:'俏皮',gentle:'温柔'})[state.coach.tone]||''}</span></div>
         <div class="ob-summary-row"><span class="k">体态照片</span><span class="v">${photoCount > 0 ? photoCount + ' 张' : '已跳过'}</span></div>
       </div>
       <div class="onboarding-actions">
@@ -450,7 +496,7 @@
       // 让按钮的禁用状态先渲染出来
       await new Promise(r => setTimeout(r, 120));
       close();
-      state.onComplete && await state.onComplete(state.profile, state.photos);
+      state.onComplete && await state.onComplete(state.profile, state.photos, state.coach);
     });
     root().scrollTop = 0;
   }

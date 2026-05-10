@@ -282,10 +282,16 @@
         ${slot('back','背面')}
       </div>
       <div class="text-xs text-faint center mb-12">点击放大查看</div>
-      <button class="btn btn-secondary btn-block" data-act="ai-analyze-photos">
-        <svg viewBox="0 0 24 24" width="16" height="16"><use href="#i-sparkles"/></svg>
-        AI 体态分析
-      </button>
+      <div class="row gap mb-12">
+        <button class="btn btn-secondary flex-1" data-act="ai-analyze-photos">
+          <svg viewBox="0 0 24 24" width="16" height="16"><use href="#i-sparkles"/></svg>
+          AI 体态分析
+        </button>
+        <button class="btn btn-secondary flex-1" data-act="photo-timeline">
+          <svg viewBox="0 0 24 24" width="16" height="16"><use href="#i-clock"/></svg>
+          历史对比
+        </button>
+      </div>
     `;
   }
 
@@ -411,7 +417,8 @@
       'custom-exercises': () => openCustomExercises(),
       'edit-profile': async () => {
         const profile = await Storage.getProfile();
-        App.startOnboarding(true, profile);
+        const settings = await Storage.getSettings();
+        App.startOnboarding(true, profile, { name: settings.coachName, tone: settings.coachTone });
       },
       'update-photos': openPhotoUpdater,
       'add-weight': openWeightAdder,
@@ -463,6 +470,7 @@
         UI.toast('备份已下载', { type: 'success', icon: 'i-download' });
       },
       'import': () => document.getElementById('import-file').click(),
+      'photo-timeline': () => openPhotoTimeline(),
       'ai-analyze-photos': async () => {
         const profile = await Storage.getProfile();
         const photos = await Storage.getPhotos();
@@ -878,6 +886,64 @@
 
   function escapeHtml(s) {
     return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  }
+
+  // ---------- 照片时间序列 ----------
+  async function openPhotoTimeline() {
+    const data = await Storage.getPhotoSessions();
+    const sessions = (data.sessions || []).sort((a, b) => b.date.localeCompare(a.date));
+
+    if (sessions.length === 0) {
+      UI.toast('还没有归档的体态照片', { type: 'error' });
+      return;
+    }
+
+    UI.showModal(`
+      <div class="sheet">
+        <div class="sheet-header">
+          <h2 style="margin:0">体态变化</h2>
+          <button class="btn btn-icon" data-act="close"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="sheet-body">
+          <div class="text-dim text-sm mb-12">${sessions.length} 组照片 · 最近的在最上面</div>
+          ${sessions.map(s => `
+            <div class="timeline-session">
+              <div class="row between mb-8">
+                <strong>${s.date}</strong>
+                <button class="btn btn-icon" data-del-session="${s.date}" title="删除这组">
+                  <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-trash"/></svg>
+                </button>
+              </div>
+              <div class="timeline-photos">
+                ${['front','side','back'].map(k => s[k]
+                  ? `<img src="${s[k]}" data-view="${s[k]}" />`
+                  : '<div class="timeline-photo-empty"></div>'
+                ).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `, (modal, close) => {
+      modal.querySelector('[data-act="close"]').addEventListener('click', close);
+      modal.addEventListener('click', e => { if (e.target === modal) close(); });
+      modal.querySelectorAll('[data-view]').forEach(img => {
+        img.addEventListener('click', () => showImageModal(img.dataset.view));
+      });
+      modal.querySelectorAll('[data-del-session]').forEach(b => {
+        b.addEventListener('click', async () => {
+          const ok = await UI.confirmModal({
+            title: '删除这组照片?',
+            text: `${b.dataset.delSession} 那天的体态照片会被删除。`,
+            okLabel: '删除', danger: true,
+          });
+          if (!ok) return;
+          await Storage.removePhotoSession(b.dataset.delSession);
+          close();
+          openPhotoTimeline();
+        });
+      });
+    });
   }
 
   global.MeView = { render };

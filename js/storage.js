@@ -57,14 +57,44 @@
       return merged;
     },
 
-    // ---------- photos ----------
+    // ---------- photos (latest, for compatibility) ----------
     async getPhotos() { return readJSON(k('photos')); },
     async savePhotos(photos) {
       const value = { ...photos, updatedAt: new Date().toISOString() };
       await writeJSON(k('photos'), value);
+      // 同时把当前照片归档到时间序列
+      try { await this.archivePhotos(value); } catch (e) {}
       return value;
     },
     async clearPhotos() { await remove(k('photos')); },
+
+    // ---------- photo sessions (time series) ----------
+    async getPhotoSessions() {
+      const v = await readJSON(k('photo_sessions'));
+      return v || { sessions: [] };
+    },
+    async archivePhotos(photoSet) {
+      const data = await this.getPhotoSessions();
+      const dateKey = new Date().toISOString().slice(0, 10);
+      // 同一天覆盖
+      data.sessions = (data.sessions || []).filter(s => s.date !== dateKey);
+      data.sessions.push({
+        date: dateKey,
+        front: photoSet.front || null,
+        side: photoSet.side || null,
+        back: photoSet.back || null,
+        at: new Date().toISOString(),
+      });
+      data.sessions.sort((a, b) => a.date.localeCompare(b.date));
+      await writeJSON(k('photo_sessions'), data);
+      return data;
+    },
+    async removePhotoSession(dateKey) {
+      const data = await this.getPhotoSessions();
+      data.sessions = (data.sessions || []).filter(s => s.date !== dateKey);
+      await writeJSON(k('photo_sessions'), data);
+      return data;
+    },
 
     // ---------- plan ----------
     async getPlan() { return readJSON(k('plan')); },

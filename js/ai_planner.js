@@ -381,6 +381,28 @@ ${weightChange}
     return { text: (result.text || '').trim() };
   }
 
+  // ---------- 训练完成寄语(简短)----------
+  async function postWorkout(profile, day, log) {
+    const id = await getCoachIdentity();
+    const totalSets = (log.completedExercises || []).reduce((s, e) => s + (e.sets ? e.sets.length : 0), 0);
+    const totalReps = (log.completedExercises || []).reduce((s, e) => s + (e.sets || []).reduce((a, b) => a + (b.reps || 0), 0), 0);
+    const dur = log.durationSec ? Math.round(log.durationSec / 60) : 0;
+    const exNames = (day.exercises || []).map(e => e.nameZh).join('、');
+
+    const sys = `你是用户的私教"${id.name}"。${id.toneDesc}。用户刚完成今天的训练。给一句温暖、具体、不重复套话的寄语(中文,30-60 字,不要 markdown,不要 emoji)。可以提到具体的动作或数字让用户觉得你在认真看。`;
+    const user = `今天的训练: ${day.title}, 动作: ${exNames}.
+完成 ${totalSets} 组, ${totalReps} 次, 用时 ${dur} 分钟.
+目标: ${profile.goal}, 经验: ${profile.experience}.
+
+写一句给用户的寄语。`;
+
+    const result = await AI.chat(
+      [{ role: 'system', content: sys }, { role: 'user', content: user }],
+      { model: 'deepseek-chat', temperature: 0.85, maxTokens: 200, timeoutMs: 15000 }
+    );
+    return { text: (result.text || '').trim() };
+  }
+
   // ---------- 当日心情 → 计划调整建议 ----------
   async function moodAdvice(profile, day, mood) {
     const coach = await getCoachIdentity();
@@ -435,5 +457,5 @@ ${weightChange}
     return { text: (result.text || '').trim(), photoUsed: first.key };
   }
 
-  global.AIPlanner = { generate, coach, chat, weeklyJournal, moodAdvice, analyzePhysique, getCoachIdentity };
+  global.AIPlanner = { generate, coach, chat, weeklyJournal, moodAdvice, postWorkout, analyzePhysique, getCoachIdentity };
 })(window);

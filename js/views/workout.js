@@ -376,6 +376,8 @@
     await checkAchievements();
 
     render();
+    // 异步加载 AI 寄语
+    fetchPostWorkoutMessage();
   }
 
   async function checkAchievements() {
@@ -393,6 +395,17 @@
       console.error('achievements check failed', e);
       state.newAchievements = [];
     }
+  }
+
+  async function fetchPostWorkoutMessage() {
+    try {
+      const profile = await Storage.getProfile();
+      const result = await AIPlanner.postWorkout(profile, state.day, state.log);
+      state.postMessage = result.text;
+      // 重渲染 summary 中的寄语
+      const el = document.getElementById('w-coach-message');
+      if (el && state.postMessage) el.textContent = state.postMessage;
+    } catch (e) { /* silent */ }
   }
 
   function renderSummary() {
@@ -427,6 +440,7 @@
           </div>
           <h1 style="text-align:center; margin-bottom:4px">训练完成</h1>
           <div class="text-dim center">${day.title}</div>
+          <div class="w-coach-message" id="w-coach-message">${state.postMessage || ''}</div>
         </div>
 
         <div class="stat-row mt-24">

@@ -71,13 +71,17 @@
     }, 300);
   }
 
-  function startOnboarding(isEdit, preset) {
+  function startOnboarding(isEdit, preset, coachPreset) {
     document.getElementById('main-root').classList.add('hidden');
     document.getElementById('tab-bar').classList.add('hidden');
+    document.getElementById('chat-fab')?.classList.add('hidden');
 
-    OnboardingView.start(async (profile, photos) => {
+    OnboardingView.start(async (profile, photos, coach) => {
       try {
         await Storage.saveProfile(profile);
+        if (coach && coach.name) {
+          await Storage.saveSettings({ coachName: coach.name, coachTone: coach.tone || 'friendly' });
+        }
         const hasAnyPhoto = photos && (photos.front || photos.side || photos.back);
         if (hasAnyPhoto) {
           const cur = (await Storage.getPhotos()) || {};
@@ -110,18 +114,22 @@
         console.error(e);
         UI.toast('保存出错', { type: 'error' });
       }
-    }, { isEdit, preset });
+    }, { isEdit, preset, coach: coachPreset });
   }
 
   async function enterMain() {
     document.getElementById('main-root').classList.remove('hidden');
     document.getElementById('tab-bar').classList.remove('hidden');
+    document.getElementById('chat-fab')?.classList.remove('hidden');
     await switchTab(currentTab || 'today');
   }
 
   function bindTabs() {
     document.querySelectorAll('.tab[data-tab]').forEach(tab => {
       tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
+    document.getElementById('chat-fab')?.addEventListener('click', () => {
+      ChatView.open();
     });
   }
 

@@ -216,6 +216,48 @@
     bindEvents(day, log, plan);
     renderAITip(profile, todayKey);
     maybeOfferAdaptation(plan, profile, todayKey);
+    maybeOfferJournal(todayKey);
+  }
+
+  // 周日提示生成本周日记
+  async function maybeOfferJournal(todayKey) {
+    const today = new Date();
+    if (today.getDay() !== 0) return; // 仅周日
+    const settings = await Storage.getSettings();
+    if (settings.journalPromptShownFor === todayKey) return;
+    const journals = await Storage.getJournals();
+    const weekStart = Planner.toDateKey(Planner.getMonday(today));
+    if (journals.items[weekStart]) return; // 已有日记
+
+    const slot = document.getElementById('ai-tip-slot');
+    if (!slot) return;
+    const card = document.createElement('div');
+    card.className = 'card adapt-card';
+    card.innerHTML = `
+      <div class="row gap mb-8">
+        <svg viewBox="0 0 24 24" width="16" height="16" style="color:var(--accent); flex:0 0 16px"><use href="#i-book"/></svg>
+        <strong>本周训练总结</strong>
+      </div>
+      <div class="text-sm text-dim mb-12">让教练帮你写一篇本周训练日记?</div>
+      <div class="row gap">
+        <button class="btn btn-sm btn-secondary flex-1" data-journal="dismiss">下次再说</button>
+        <button class="btn btn-sm btn-primary flex-1" data-journal="open">看一下</button>
+      </div>
+    `;
+    slot.appendChild(card);
+    card.querySelector('[data-journal="dismiss"]').addEventListener('click', async () => {
+      await Storage.saveSettings({ journalPromptShownFor: todayKey });
+      card.remove();
+    });
+    card.querySelector('[data-journal="open"]').addEventListener('click', async () => {
+      await Storage.saveSettings({ journalPromptShownFor: todayKey });
+      card.remove();
+      await App.switchTab('me');
+      // 模拟点击周报项
+      setTimeout(() => {
+        document.querySelector('[data-act="open-journal"]')?.click();
+      }, 200);
+    });
   }
 
   // 检查昨天有未完成训练日,如果有则提示是否将其顺移
@@ -510,7 +552,7 @@
       finishBtn.addEventListener('click', async () => {
         log.completedAt = new Date().toISOString();
         await Storage.saveLog(todayKey, log);
-        // 检查新成就
+        // 成就
         const logs = await Storage.listLogs();
         const settings = await Storage.getSettings();
         const result = Achievements.compute(logs, plan);
@@ -518,8 +560,15 @@
         const newOnes = Achievements.diff(settings.achievements || [], earnedIds);
         await Storage.saveSettings({ achievements: earnedIds });
 
+        // 庆祝(默认文案,异步替换为 AI)
+        const profile = await Storage.getProfile();
         const subText = `${day.title} · ${day.exercises.length} 个动作`;
         UI.celebrate(subText);
+
+        AIPlanner.postWorkout(profile, day, log).then(res => {
+          const sub = document.getElementById('celebration-sub');
+          if (sub && res.text) sub.textContent = res.text;
+        }).catch(()=>{});
 
         if (newOnes.length) {
           setTimeout(() => {
