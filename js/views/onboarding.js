@@ -3,7 +3,7 @@
  * Renders into #onboarding-root.
  */
 (function (global) {
-  const QUESTION_STEPS = 6; // basics / goal / experience / days / venue / photos
+  const QUESTION_STEPS = 7; // basics / goal / experience / days / venue / focus / photos
   const PHASES = ['welcome', 'questions', 'ready'];
 
   const state = {
@@ -15,6 +15,7 @@
       experience: null,
       daysPerWeek: null,
       venue: null,
+      focusAreas: [],
     },
     photos: { front: null, side: null, back: null },
     onComplete: null,
@@ -28,9 +29,20 @@
     state.step = 0;
     state.onComplete = onComplete;
     state.isEdit = !!opts.isEdit;
+    // 重置默认值
+    state.profile = {
+      basics: { gender: 'male', age: '', height: '', weight: '' },
+      goal: null,
+      experience: null,
+      daysPerWeek: null,
+      venue: null,
+      focusAreas: [],
+    };
+    state.photos = { front: null, side: null, back: null };
     if (opts.preset) {
-      // 编辑模式预填
-      state.profile = JSON.parse(JSON.stringify(opts.preset));
+      const merged = JSON.parse(JSON.stringify(opts.preset));
+      if (!merged.focusAreas) merged.focusAreas = [];
+      state.profile = merged;
     }
     root().classList.remove('hidden');
     render();
@@ -132,7 +144,8 @@
     if (i === 2) return stepExperience();
     if (i === 3) return stepDays();
     if (i === 4) return stepVenue();
-    if (i === 5) return stepPhotos();
+    if (i === 5) return stepFocus();
+    if (i === 6) return stepPhotos();
     return '';
   }
 
@@ -173,13 +186,13 @@
 
   function stepGoal() {
     const opts = [
-      { v: 'fat_loss',    t: '减脂',  d: '降低体脂,保持肌肉' },
-      { v: 'muscle_gain', t: '增肌',  d: '提升肌肉量和力量' },
-      { v: 'shape',       t: '塑形',  d: '紧致线条,轻度减脂' },
-      { v: 'maintain',    t: '维持',  d: '保持现有状态' },
+      { v: 'fat_loss',    t: '减脂',  d: '降体脂,保持肌肉量,看见线条' },
+      { v: 'muscle_gain', t: '增肌',  d: '增加肌肉量,变得更壮、更有力量' },
+      { v: 'shape',       t: '塑形',  d: '紧致体态、修饰曲线,轻度减脂' },
+      { v: 'maintain',    t: '维持',  d: '保持当前状态,延缓衰老' },
     ];
     return `
-      <h1>主要目标是?</h1>
+      <h1>想变成什么样?</h1>
       <p class="text-dim mb-16">影响训练强度、组数次数和饮食结构</p>
       <div class="option-list">
         ${opts.map(o => `
@@ -191,6 +204,23 @@
           </div>
         `).join('')}
       </div>
+    `;
+  }
+
+  function stepFocus() {
+    const groups = ExerciseLib.FOCUS_GROUPS;
+    const selected = new Set(state.profile.focusAreas || []);
+    return `
+      <h1>重点想练哪里?</h1>
+      <p class="text-dim mb-16">可多选,可不选。选中的部位会在计划里多排一个动作</p>
+      <div class="chip-grid">
+        ${groups.map(g => `
+          <button class="chip ${selected.has(g.id)?'selected':''}" data-focus="${g.id}">
+            ${g.label}
+          </button>
+        `).join('')}
+      </div>
+      <p class="text-faint text-xs center mt-16">不选 = 全身均衡发展</p>
     `;
   }
 
@@ -313,6 +343,20 @@
       });
     }
     if (i === 5) {
+      root().querySelectorAll('[data-focus]').forEach(el => {
+        el.addEventListener('click', () => {
+          const id = el.dataset.focus;
+          const cur = state.profile.focusAreas || [];
+          if (cur.includes(id)) {
+            state.profile.focusAreas = cur.filter(x => x !== id);
+          } else {
+            state.profile.focusAreas = [...cur, id];
+          }
+          render();
+        });
+      });
+    }
+    if (i === 6) {
       root().querySelectorAll('input[type=file][data-photo]').forEach(input => {
         input.addEventListener('change', async (e) => {
           const file = e.target.files[0];
@@ -338,7 +382,8 @@
     if (i === 2) return !!state.profile.experience;
     if (i === 3) return !!state.profile.daysPerWeek;
     if (i === 4) return !!state.profile.venue;
-    if (i === 5) return true;
+    if (i === 5) return true;  // focus areas optional
+    if (i === 6) return true;  // photos optional
     return false;
   }
 
@@ -366,6 +411,10 @@
     const expLabels = { beginner:'新手', intermediate:'有基础', advanced:'高级' };
     const photoCount = ['front','side','back'].filter(k => state.photos[k]).length;
     const p = state.profile;
+    const focusLabels = (p.focusAreas || []).map(id => {
+      const g = ExerciseLib.FOCUS_GROUPS.find(x => x.id === id);
+      return g ? g.label : id;
+    });
 
     root().innerHTML = `
       <div class="ob-hero">
@@ -381,6 +430,7 @@
         <div class="ob-summary-row"><span class="k">经验</span><span class="v">${expLabels[p.experience]}</span></div>
         <div class="ob-summary-row"><span class="k">每周</span><span class="v">${p.daysPerWeek} 天</span></div>
         <div class="ob-summary-row"><span class="k">场地</span><span class="v">${venueLabels[p.venue]}</span></div>
+        <div class="ob-summary-row"><span class="k">重点</span><span class="v">${focusLabels.length ? focusLabels.join(' · ') : '全身均衡'}</span></div>
         <div class="ob-summary-row"><span class="k">体态照片</span><span class="v">${photoCount > 0 ? photoCount + ' 张' : '已跳过'}</span></div>
       </div>
       <div class="onboarding-actions">

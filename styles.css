@@ -719,6 +719,51 @@ h3 { font-size: 16px; font-weight: 600; }
 .center { text-align: center; }
 .flex-1 { flex: 1; }
 
+/* ===== Chip grid (focus areas) ===== */
+.chip-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.chip {
+  height: 56px;
+  background: var(--card);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease), transform 0.1s var(--ease);
+  cursor: pointer;
+  user-select: none;
+}
+.chip:active { transform: scale(0.96); }
+.chip.selected {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, rgba(232,93,36,0.14), rgba(232,93,36,0.04));
+  color: var(--accent);
+}
+
+/* ===== Focus badge / weight hint ===== */
+.focus-badge {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.exercise-meta-item.weight-hint {
+  flex-basis: 100%;
+  margin-top: 2px;
+  color: var(--text-dim);
+}
+.exercise-meta-item.weight-hint strong { color: var(--accent); font-size: 14px; font-weight: 600; }
+
 /* ===== 今日 hero 按钮 ===== */
 .today-hero-btn {
   display: flex; align-items: center; justify-content: space-between;

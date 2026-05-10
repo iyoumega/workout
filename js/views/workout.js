@@ -111,8 +111,11 @@
     const overallPct = (overallDone / overallTotal) * 100;
 
     const lastSet = exDone.sets[exDone.sets.length - 1];
-    const prefillWeight = lastSet ? lastSet.weight : (state.lastWeight ?? '');
-    const prefillReps = lastSet ? lastSet.reps : (state.lastReps ?? parseRepsLow(ex.reps));
+    const prefillWeight = lastSet
+      ? lastSet.weight
+      : (state.lastWeight != null ? state.lastWeight : (ex.suggestedWeight != null ? ex.suggestedWeight : ''));
+    const prefillReps = lastSet ? lastSet.reps : (state.lastReps != null ? state.lastReps : parseRepsLow(ex.reps));
+    const weightHint = ex.suggestedWeight != null ? WeightRef.format(ex.suggestedWeight, ex.id) : null;
 
     root().innerHTML = `
       <div class="w-header">
@@ -132,7 +135,10 @@
           <span>·</span>
           <span>第 <strong>${setIdx + 1}</strong> 组 / ${totalSets}</span>
         </div>
-        <div class="w-exercise-name">${ex.nameZh}</div>
+        <div class="w-exercise-name">
+          ${ex.nameZh}
+          ${ex.isFocus ? '<span class="focus-badge">重点</span>' : ''}
+        </div>
         <div class="w-exercise-en">${ex.nameEn}</div>
         <div class="muscle-tags mt-12">
           ${ex.muscles.map(m => `<span class="muscle-tag">${m}</span>`).join('')}
@@ -141,6 +147,7 @@
         <div class="w-target">
           <div class="w-target-row"><span>目标</span><strong>${ex.reps} 次</strong></div>
           <div class="w-target-row"><span>组间休息</span><strong>${ex.restSec}s</strong></div>
+          ${weightHint ? `<div class="w-target-row"><span>建议重量</span><strong style="color:var(--accent)">${weightHint}</strong></div>` : ''}
         </div>
 
         ${exDone.sets.length > 0 ? `

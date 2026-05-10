@@ -66,7 +66,6 @@
     const all = ExerciseLib.byDayType(dayType, venue);
     if (!all.length) return [];
 
-    // Group by muscleKey for balanced coverage.
     const targetMuscles = ExerciseLib.TYPE_TO_MUSCLES[dayType] || [];
     const buckets = {};
     targetMuscles.forEach(m => buckets[m] = []);
@@ -74,12 +73,18 @@
       ex.muscleKeys.forEach(m => { if (buckets[m]) buckets[m].push(ex); });
     });
 
-    // Pick: 1 compound + 1 isolation per muscle group (capped by total count).
-    const targetCount = (() => {
+    // 重点部位 → 当天涉及的肌群
+    const focusMuscles = new Set(
+      ExerciseLib.focusToMuscleKeys(profile.focusAreas || [])
+        .filter(m => targetMuscles.includes(m))
+    );
+
+    // base count + 每个重点部位 +1
+    let targetCount = (() => {
       if (dayType === 'fullbody') return profile.experience === 'beginner' ? 4 : 5;
-      if (dayType === 'upper' || dayType === 'lower') return 5;
-      return 5; // push/pull/legs
+      return 5;
     })();
+    targetCount += focusMuscles.size; // bonus
 
     const chosen = [];
     const seen = new Set();
@@ -93,7 +98,19 @@
         if (chosen.length >= targetCount) break;
       }
     }
-    // 2nd pass: isolation to fill
+    // 2nd pass: 重点肌群额外补一个动作(优先 isolation,没有就退回 compound)
+    for (const m of focusMuscles) {
+      if (chosen.length >= targetCount) break;
+      let candidates = (buckets[m] || []).filter(e => !e.isCompound && !seen.has(e.id));
+      if (!candidates.length) {
+        candidates = (buckets[m] || []).filter(e => !seen.has(e.id));
+      }
+      if (candidates.length) {
+        const pick = candidates[hash(profile, dayType, m, 'focus') % candidates.length];
+        chosen.push(pick); seen.add(pick.id);
+      }
+    }
+    // 3rd pass: 普通 isolation
     for (const m of targetMuscles) {
       if (chosen.length >= targetCount) break;
       const isos = (buckets[m] || []).filter(e => !e.isCompound && !seen.has(e.id));
@@ -102,30 +119,37 @@
         chosen.push(pick); seen.add(pick.id);
       }
     }
-    // 3rd pass: anything else
+    // 4th pass: 兜底
     for (const ex of all) {
       if (chosen.length >= targetCount) break;
       if (!seen.has(ex.id)) { chosen.push(ex); seen.add(ex.id); }
     }
 
-    // Compounds before isolations, otherwise preserve insertion order
+    // Compounds first
     chosen.sort((a, b) => {
       if (a.isCompound === b.isCompound) return 0;
       return a.isCompound ? -1 : 1;
     });
 
-    // Materialize with sets/reps/rest
-    return chosen.map(ex => ({
-      id: ex.id,
-      nameZh: ex.nameZh,
-      nameEn: ex.nameEn,
-      muscles: ex.muscles,
-      sets: setsForExperience(profile.experience, ex.isCompound),
-      reps: repsForGoal(profile.goal, ex.isCompound),
-      restSec: restForGoal(profile.goal, ex.isCompound),
-      tips: ex.tips,
-      imageUrl: ex.imageUrl,
-    }));
+    // Materialize with sets/reps/rest + suggested weight
+    return chosen.map(ex => {
+      const isFocus = ex.muscleKeys.some(k => focusMuscles.has(k));
+      const sets = setsForExperience(profile.experience, ex.isCompound) + (isFocus && !ex.isCompound ? 1 : 0);
+      const suggestedWeight = (typeof WeightRef !== 'undefined') ? WeightRef.suggest(ex.id, profile) : null;
+      return {
+        id: ex.id,
+        nameZh: ex.nameZh,
+        nameEn: ex.nameEn,
+        muscles: ex.muscles,
+        sets,
+        reps: repsForGoal(profile.goal, ex.isCompound),
+        restSec: restForGoal(profile.goal, ex.isCompound),
+        suggestedWeight,
+        isFocus,
+        tips: ex.tips,
+        imageUrl: ex.imageUrl,
+      };
+    });
   }
 
   // Stable-ish "hash" so repeated generations give same picks for same profile.

@@ -103,11 +103,15 @@
       const exLog = (log.completedExercises || []).find(e => e.id === ex.id);
       const setsLogged = exLog ? (exLog.sets || []).length : 0;
       const done = completedSet.has(ex.id) || setsLogged >= ex.sets;
+      const weightHint = ex.suggestedWeight != null ? WeightRef.format(ex.suggestedWeight, ex.id) : null;
       return `
         <div class="card exercise-card ${done?'done':''}" data-ex-id="${ex.id}">
           <div class="card-row">
             <div>
-              <div class="exercise-name">${ex.nameZh}</div>
+              <div class="exercise-name">
+                ${ex.nameZh}
+                ${ex.isFocus ? '<span class="focus-badge">重点</span>' : ''}
+              </div>
               <div class="exercise-name-en">${ex.nameEn}</div>
             </div>
             <div class="text-faint text-xs">${idx+1}/${day.exercises.length}</div>
@@ -119,6 +123,7 @@
             <div class="exercise-meta-item"><strong>${ex.sets}</strong>组</div>
             <div class="exercise-meta-item"><strong>${ex.reps}</strong>次</div>
             <div class="exercise-meta-item">休息<strong style="margin-left:4px">${ex.restSec}</strong>s</div>
+            ${weightHint ? `<div class="exercise-meta-item weight-hint">建议<strong style="margin-left:4px">${weightHint}</strong></div>` : ''}
           </div>
           ${setsLogged > 0 ? `
             <div class="w-history-strip mt-8">

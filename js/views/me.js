@@ -42,6 +42,13 @@
           <div class="profile-info-line">
             每周 ${profile.daysPerWeek} 天 · ${venueLabels[profile.venue]}
           </div>
+          ${(profile.focusAreas && profile.focusAreas.length) ? `
+            <div class="profile-info-line" style="margin-top:6px">
+              ${profile.focusAreas.map(id => {
+                const g = ExerciseLib.FOCUS_GROUPS.find(x => x.id === id);
+                return g ? `<span class="muscle-tag" style="margin-right:4px">${g.label}</span>` : '';
+              }).join('')}
+            </div>` : ''}
         </div>
         <button class="btn btn-icon" data-act="settings" title="设置">
           <svg viewBox="0 0 24 24" width="18" height="18"><use href="#i-settings"/></svg>
