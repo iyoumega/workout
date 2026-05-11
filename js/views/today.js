@@ -127,6 +127,7 @@
             <div class="fw-600">今日训练已完成</div>
             <div class="text-xs text-dim">${dur} · ${totalSets} 组 · 干得漂亮</div>
           </div>
+          <button class="btn-ghost-mini" data-act="undo-day">撤销</button>
         </div>
       `;
     } else {
@@ -227,7 +228,7 @@
               <svg viewBox="0 0 24 24"><use href="#i-link"/></svg>
             </button>
             <button class="btn btn-sm ${done?'btn-secondary':'btn-primary'}" data-act="toggle" data-id="${ex.id}">
-              ${done ? '<svg viewBox="0 0 24 24"><use href="#i-check"/></svg>已完成' : '标记完成'}
+              ${done ? '撤销' : '标记完成'}
             </button>
           </div>
         </div>
@@ -575,6 +576,22 @@
 
   function bindEvents(day, log, plan) {
     const todayKey = Planner.toDateKey(new Date());
+
+    // 撤销今日完成
+    root().querySelector('[data-act="undo-day"]')?.addEventListener('click', async () => {
+      const ok = await UI.confirmModal({
+        title: '撤销今日完成?',
+        text: '记录中的"已完成"标记会被移除,但已记录的组数据保留。',
+        okLabel: '撤销',
+        danger: false,
+      });
+      if (!ok) return;
+      delete log.completedAt;
+      delete log.durationSec;
+      await Storage.saveLog(todayKey, log);
+      UI.toast('已撤销', { icon: 'i-refresh', ttl: 1500 });
+      render();
+    });
 
     document.getElementById('start-workout')?.addEventListener('click', async () => {
       const choice = await chooseTimeBudget(day);

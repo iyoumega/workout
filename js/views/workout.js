@@ -816,6 +816,7 @@
           </button>
           <button class="btn btn-primary flex-1" data-act="done">完成</button>
         </div>
+        <button class="btn-ghost-mini center-block mt-12" data-act="discard">放弃这次训练(不计入记录)</button>
       </div>
     `;
 
@@ -830,6 +831,24 @@
       });
     });
     root().querySelector('[data-act="share"]').addEventListener('click', () => shareWorkout(day, log));
+    root().querySelector('[data-act="discard"]').addEventListener('click', async () => {
+      const ok = await UI.confirmModal({
+        title: '放弃这次训练?',
+        text: '本次记录会从历史中删除,适合测试时使用。已记录的组数据也会清空。',
+        okLabel: '放弃',
+        danger: true,
+      });
+      if (!ok) return;
+      // 删 log
+      try {
+        const cleared = { dayIndex: state.day.dayIndex, completedExercises: [] };
+        await Storage.saveLog(state.day.date, cleared);
+      } catch (e) {}
+      const onFinish = state.onFinish;
+      hide();
+      onFinish && onFinish({ dayIndex: state.day.dayIndex, completedExercises: [] });
+      UI.toast('已放弃这次训练', { icon: 'i-refresh', ttl: 1800 });
+    });
   }
 
   async function shareWorkout(day, log) {

@@ -122,13 +122,8 @@
       <div class="section-title">体态照片</div>
       ${renderPhotos(photos)}
 
-      <div class="section-title">教练</div>
+      <div class="section-title">回顾</div>
       <div class="list-group">
-        <div class="list-item" data-act="open-chat">
-          <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-chat"/></svg></span>
-          <span class="label">和教练聊天</span>
-          <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
-        </div>
         <div class="list-item" data-act="open-journal">
           <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg></span>
           <span class="label">本周日记</span>
@@ -195,7 +190,7 @@
       <input type="file" id="import-file" accept="application/json" hidden />
 
       <div class="text-faint text-xs center mt-24" style="margin-bottom: 16px">
-        v0.9.1 · 数据仅保存在本机浏览器
+        v0.9.2 · 数据仅保存在本机浏览器
       </div>
     `;
 
@@ -665,7 +660,6 @@
   function bindEvents() {
     const handlers = {
       'settings': () => SettingsView.open(),
-      'open-chat': () => (typeof openChatSafely === 'function' ? openChatSafely() : ChatView.open()),
       'open-journal': () => openJournal(),
       'open-history': () => openHistoryList(),
       'custom-exercises': () => openCustomExercises(),
