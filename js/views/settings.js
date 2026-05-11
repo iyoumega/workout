@@ -34,6 +34,16 @@
 
           <div class="section-title">通知与反馈</div>
           <div class="setting-row">
+            <span class="label">安静模式</span>
+            <label class="switch">
+              <input type="checkbox" data-key="quietMode" ${s.quietMode?'checked':''} />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-row column-stack">
+            <span class="label">公共场合一键静音 — 关闭所有提示音、语音、节拍器(振动可单独控)</span>
+          </div>
+          <div class="setting-row">
             <span class="label">提示音</span>
             <label class="switch">
               <input type="checkbox" data-key="sound" ${s.sound?'checked':''} />
@@ -109,6 +119,10 @@
       modal.querySelectorAll('input[type=checkbox][data-key]').forEach(input => {
         input.addEventListener('change', async () => {
           await Storage.saveSettings({ [input.dataset.key]: input.checked });
+          // 安静模式即时同步到 AudioCue
+          if (input.dataset.key === 'quietMode' && typeof AudioCue !== 'undefined') {
+            AudioCue.setQuiet(input.checked);
+          }
           UI.toast('已保存', { type: 'success', icon: 'i-check', ttl: 1200 });
         });
       });

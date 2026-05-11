@@ -171,7 +171,13 @@
     // ---------- weights (body weight time series) ----------
     async getWeights() {
       const v = await readJSON(k('weights'));
-      return v || { entries: [] };
+      return v || { entries: [], target: null };
+    },
+    async setWeightTarget(targetKg) {
+      const data = await this.getWeights();
+      data.target = targetKg ? Number(targetKg) : null;
+      await writeJSON(k('weights'), data);
+      return data;
     },
     async addWeight(kg, dateKey) {
       const data = await this.getWeights();

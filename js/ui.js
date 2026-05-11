@@ -82,6 +82,29 @@
     };
   }
 
+  // 在任意容器内撒纸屑(用于 PR 等小庆祝)
+  function spawnConfettiAt(host, count) {
+    if (!host) return;
+    const colors = ['#E85D24', '#fbbf24', '#4ade80', '#60a5fa', '#ff5b9c', '#a78bfa'];
+    const N = count || 20;
+    for (let i = 0; i < N; i++) {
+      const c = document.createElement('span');
+      c.className = 'confetti';
+      const size = 5 + Math.random() * 5;
+      c.style.width = size + 'px';
+      c.style.height = size * 1.6 + 'px';
+      c.style.background = colors[i % colors.length];
+      c.style.left = (50 + (Math.random() - 0.5) * 40) + '%';
+      c.style.animationDelay = (Math.random() * 0.15) + 's';
+      c.style.animationDuration = (1.0 + Math.random() * 0.5) + 's';
+      c.style.transform = `rotate(${Math.random() * 360}deg)`;
+      c.style.setProperty('--dx', ((Math.random() - 0.5) * 50) + 'vw');
+      c.style.setProperty('--dy', (50 + Math.random() * 30) + 'vh');
+      host.appendChild(c);
+      setTimeout(() => c.remove(), 1800);
+    }
+  }
+
   function spawnConfetti() {
     const ov = document.getElementById('celebration-overlay');
     // 清旧
@@ -178,5 +201,5 @@
     return '晚安';
   }
 
-  global.UI = { toast, confirmModal, showModal, closeModal, celebrate, greeting, showLoading, showLoadingWithCoach, countUp, applyCountUp };
+  global.UI = { toast, confirmModal, showModal, closeModal, celebrate, greeting, showLoading, showLoadingWithCoach, countUp, applyCountUp, spawnConfettiAt };
 })(window);

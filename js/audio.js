@@ -13,6 +13,7 @@
   let ctx = null;
   let tickInterval = null;
   let voicesCache = null;
+  let quietMode = false; // 同步标记,启动时由 app.js 注入
 
   function ensureCtx() {
     if (!ctx) {
@@ -22,7 +23,9 @@
     return ctx;
   }
 
+  function setQuiet(v) { quietMode = !!v; if (v) tickStop(); stopSpeak(); }
   function beep(freq, duration) {
+    if (quietMode) return;
     const c = ensureCtx();
     if (!c) return;
     try { if (c.state === 'suspended') c.resume(); } catch(e){}
@@ -99,11 +102,13 @@
 
   async function isVoiceEnabled() {
     const s = await Storage.getSettings();
+    if (s.quietMode) return false;
     return s.voice !== false; // 默认开
   }
   async function isMetronomeEnabled() {
     const s = await Storage.getSettings();
-    return s.metronome === true; // 默认关
+    if (s.quietMode) return false;
+    return s.metronome === true;
   }
 
   // 倒计时:3,2,1,开始
@@ -122,6 +127,6 @@
   global.AudioCue = {
     beep, tickStart, tickStop, isTicking,
     speak, stopSpeak, countdown,
-    isVoiceEnabled, isMetronomeEnabled,
+    isVoiceEnabled, isMetronomeEnabled, setQuiet,
   };
 })(window);

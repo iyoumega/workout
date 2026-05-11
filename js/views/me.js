@@ -194,6 +194,7 @@
 
   function renderWeightCard(weights) {
     const entries = (weights && weights.entries) || [];
+    const target = weights && weights.target;
     if (entries.length === 0) {
       return `
         <div class="card center">
@@ -208,6 +209,43 @@
     const change = latest.kg - start.kg;
     const changeStr = change === 0 ? '持平' : (change > 0 ? `+${change.toFixed(1)}` : change.toFixed(1));
     const changeColor = change === 0 ? 'var(--text-dim)' : (change < 0 ? 'var(--success)' : 'var(--warning)');
+
+    // 目标进度块
+    let targetBlock = '';
+    if (target != null) {
+      const diff = target - latest.kg;
+      const direction = diff > 0 ? '增' : (diff < 0 ? '减' : '持平');
+      // 估算 ETA:基于 entries 的速率
+      let etaText = '';
+      if (entries.length >= 2 && Math.abs(diff) > 0.1) {
+        const days = (new Date(latest.date) - new Date(start.date)) / 86400000;
+        const rate = (latest.kg - start.kg) / Math.max(1, days); // kg/day
+        // 方向是否一致
+        if ((diff > 0 && rate > 0) || (diff < 0 && rate < 0)) {
+          const daysToGo = Math.abs(diff / rate);
+          if (daysToGo > 0 && daysToGo < 365) {
+            const weeks = Math.round(daysToGo / 7);
+            etaText = `按当前节奏约 ${weeks} 周`;
+          }
+        } else {
+          etaText = '需要调整训练或饮食方向';
+        }
+      }
+      const progressDone = Math.abs(latest.kg - start.kg);
+      const progressTotal = Math.abs(target - start.kg);
+      const pct = progressTotal > 0 ? Math.min(100, Math.max(0, (progressDone / progressTotal) * 100)) : 0;
+      targetBlock = `
+        <div class="weight-target-block">
+          <div class="row between text-xs text-dim mb-4">
+            <span>目标 ${target}kg(还需${direction} ${Math.abs(diff).toFixed(1)}kg)</span>
+            <span>${pct.toFixed(0)}%</span>
+          </div>
+          <div class="progress"><div class="progress-bar" style="width:${pct}%"></div></div>
+          ${etaText ? `<div class="text-xs text-faint mt-4">${etaText}</div>` : ''}
+        </div>
+      `;
+    }
+
     return `
       <div class="card">
         <div class="card-row">
@@ -221,6 +259,12 @@
           </div>
         </div>
         ${entries.length >= 2 ? renderWeightChart(entries) : ''}
+        ${targetBlock}
+        <div class="row gap mt-12">
+          <button class="btn btn-sm btn-ghost flex-1" data-act="set-weight-target">
+            <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-flash"/></svg>${target != null ? '改目标' : '设目标'}
+          </button>
+        </div>
       </div>`;
   }
 
@@ -618,6 +662,7 @@
       },
       'import': () => document.getElementById('import-file').click(),
       'photo-timeline': () => openPhotoTimeline(),
+      'set-weight-target': () => openWeightTargetEditor(),
       'ai-analyze-photos': async () => {
         const profile = await Storage.getProfile();
         const photos = await Storage.getPhotos();
@@ -1033,6 +1078,53 @@
 
   function escapeHtml(s) {
     return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  }
+
+  // ---------- 体重目标编辑 ----------
+  async function openWeightTargetEditor() {
+    const data = await Storage.getWeights();
+    const profile = await Storage.getProfile();
+    const cur = data.target != null ? data.target : (profile ? profile.basics.weight : 60);
+
+    UI.showModal(`
+      <div class="modal-box">
+        <div class="modal-title">设置目标体重</div>
+        <div class="modal-text">这只是个目标,不是承诺 — 当你接近时,系统会自动调整建议。</div>
+        <div class="num-stepper big">
+          <button class="num-btn" data-act="step-down"><svg viewBox="0 0 24 24"><use href="#i-minus"/></svg></button>
+          <input id="target-input" type="number" inputmode="decimal" step="0.5" min="30" max="200" />
+          <button class="num-btn" data-act="step-up"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
+        </div>
+        <div class="modal-actions mt-16">
+          ${data.target != null ? '<button class="btn btn-secondary" data-act="clear">清除目标</button>' : '<button class="btn btn-secondary" data-act="cancel">取消</button>'}
+          <button class="btn btn-primary" data-act="save">保存</button>
+        </div>
+      </div>
+    `, (modal, close) => {
+      const input = modal.querySelector('#target-input');
+      input.value = Number(cur).toFixed(1);
+      modal.querySelector('[data-act="step-down"]').addEventListener('click', () => {
+        input.value = (Number(input.value) - 0.5).toFixed(1);
+      });
+      modal.querySelector('[data-act="step-up"]').addEventListener('click', () => {
+        input.value = (Number(input.value) + 0.5).toFixed(1);
+      });
+      modal.querySelector('[data-act="cancel"]')?.addEventListener('click', close);
+      modal.querySelector('[data-act="clear"]')?.addEventListener('click', async () => {
+        await Storage.setWeightTarget(null);
+        close();
+        UI.toast('目标已清除', { type: 'success' });
+        render();
+      });
+      modal.querySelector('[data-act="save"]').addEventListener('click', async () => {
+        const v = Number(input.value);
+        if (!(v > 30 && v < 200)) { UI.toast('请输入合理目标', { type: 'error' }); return; }
+        await Storage.setWeightTarget(v);
+        close();
+        UI.toast('目标已设置', { type: 'success', icon: 'i-check' });
+        render();
+      });
+    });
   }
 
   // ---------- 照片时间序列 ----------

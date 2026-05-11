@@ -1402,6 +1402,60 @@ h3 { font-size: 16px; font-weight: 600; }
   display: inline-block;
 }
 
+/* ===== 热身阶段 hero ===== */
+.warmup-hero {
+  text-align: center;
+  padding: 16px 0 24px;
+}
+.warmup-timer {
+  margin: 18px 0;
+  display: inline-flex; align-items: baseline; gap: 4px;
+}
+.warmup-display {
+  font-size: 64px;
+  font-weight: 200;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* ===== 体重目标块 ===== */
+.weight-target-block {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: rgba(167,139,250,0.06);
+  border-radius: 10px;
+  border-left: 2px solid var(--color-violet);
+}
+
+/* ===== Set 进度点 ===== */
+.set-dots {
+  display: flex; align-items: center; gap: 6px;
+  margin: 8px 0 4px;
+}
+.set-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.25s var(--ease), transform 0.2s var(--ease);
+}
+.set-dot.done { background: var(--color-leaf); }
+.set-dot.current {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(232,93,36,0.18);
+  transform: scale(1.2);
+  animation: dot-pulse 1.4s ease infinite;
+}
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(232,93,36,0.18); }
+  50% { box-shadow: 0 0 0 8px rgba(232,93,36,0.05); }
+}
+.set-dot-label {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
 /* ===== BPM 小提示 ===== */
 .bpm-hint {
   margin-left: 8px;

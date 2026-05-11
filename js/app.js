@@ -15,6 +15,7 @@
       ExerciseLib.setCustom(custom.items || []);
 
       const settings = await Storage.getSettings();
+      AudioCue.setQuiet(!!settings.quietMode);
       const profile = await Storage.getProfile();
 
       if (!settings.onboarded || !profile) {

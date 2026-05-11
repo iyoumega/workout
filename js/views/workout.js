@@ -20,6 +20,8 @@
     };
     if (!log.startedAt) log.startedAt = new Date().toISOString();
 
+    const settings = await Storage.getSettings();
+
     // 预加载所有 logs,用于 progression hint
     const allLogs = await Storage.listLogs().catch(() => ({}));
 
@@ -39,16 +41,24 @@
       }
     }
 
+    // 第一组之前 + 用户没禁用 → 进 warmup 阶段
+    const noProgressYet = (log.completedExercises || []).every(e => !(e.sets || []).length);
+    const skipWarmup = opts.skipWarmup || settings.warmupDisabled || !noProgressYet;
+    const initialPhase = exIdx >= day.exercises.length ? 'summary'
+      : (skipWarmup ? 'set' : 'warmup');
+
     state = {
       day, log,
       exIdx, setIdx,
-      phase: exIdx >= day.exercises.length ? 'summary' : 'set',
+      phase: initialPhase,
       lastWeight: null,
       lastReps: null,
       tickerId: null,
       restRemaining: 0,
       restTotal: 0,
       restPaused: false,
+      warmupRemaining: 60,
+      warmupTotal: 60,
       allLogs,
       onFinish: opts.onFinish || (() => {}),
     };
@@ -56,10 +66,16 @@
     show();
     startDurationTicker();
     render();
-    // 进入训练时打个招呼
-    AudioCue.isVoiceEnabled().then(on => {
-      if (on) AudioCue.speak('开始训练', { rate: 1.0 });
-    });
+    // 进入训练时打个招呼(warmup 阶段会有自己的语音)
+    if (initialPhase === 'set') {
+      AudioCue.isVoiceEnabled().then(on => {
+        if (on) AudioCue.speak('开始训练', { rate: 1.0 });
+      });
+    } else if (initialPhase === 'warmup') {
+      AudioCue.isVoiceEnabled().then(on => {
+        if (on) AudioCue.speak('先热身一下', { rate: 1.0 });
+      });
+    }
   }
 
   function show() {
@@ -82,6 +98,19 @@
       // 更新顶部计时
       const el = document.getElementById('w-duration');
       if (el) el.textContent = formatDuration(durationSec());
+      // 热身倒计时
+      if (state.phase === 'warmup') {
+        state.warmupRemaining = Math.max(0, state.warmupRemaining - 1);
+        const wd = document.getElementById('w-warmup-display');
+        if (wd) wd.textContent = state.warmupRemaining;
+        if (state.warmupRemaining <= 0) {
+          state.phase = 'set';
+          AudioCue.isVoiceEnabled().then(on => {
+            if (on) AudioCue.speak('开始训练', { rate: 1.0 });
+          });
+          render();
+        }
+      }
       // 更新休息倒计时
       if (state.phase === 'rest' && !state.restPaused) {
         state.restRemaining--;
@@ -111,7 +140,87 @@
     if (!state) return;
     if (state.phase === 'summary') return renderSummary();
     if (state.phase === 'rest')    return renderRest();
+    if (state.phase === 'warmup')  return renderWarmup();
     return renderSet();
+  }
+
+  function renderWarmup() {
+    // 选 3-4 个热身动作(基于今日肌群)
+    const muscleSet = new Set();
+    state.day.exercises.forEach(e => {
+      const def = ExerciseLib.findById(e.id);
+      if (def) (def.muscleKeys || []).forEach(k => muscleSet.add(k));
+    });
+    const warmupPool = [
+      { id: 'jumping_jack',   match: ['core','quads'] },
+      { id: 'cat_cow',        match: ['back','core'] },
+      { id: 'leg_swing',      match: ['quads','hamstrings','glutes'] },
+      { id: 'shoulder_dislocate', match: ['shoulders','chest'] },
+      { id: 'world_greatest_stretch', match: ['shoulders','quads','core'] },
+      { id: 'high_knee',      match: ['quads','core'] },
+      { id: 'hip_flexor_stretch', match: ['quads','glutes'] },
+    ];
+    const picked = warmupPool
+      .filter(p => p.match.some(m => muscleSet.has(m)))
+      .map(p => ExerciseLib.findById(p.id))
+      .filter(Boolean)
+      .slice(0, 4);
+
+    root().innerHTML = `
+      <div class="w-header">
+        <button class="btn btn-icon" data-act="quit"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+        <div class="w-progress-strip"><div class="w-progress-bar" style="width:0%"></div></div>
+        <div class="w-duration">
+          <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-clock"/></svg>
+          <span id="w-duration">${formatDuration(durationSec())}</span>
+        </div>
+      </div>
+      <div class="w-body">
+        <div class="warmup-hero">
+          <div class="text-dim text-sm" style="letter-spacing:6px">热身阶段</div>
+          <div class="text-xl mt-8">动起来,身体先醒一下</div>
+          <div class="warmup-timer">
+            <div class="warmup-display" id="w-warmup-display">${state.warmupRemaining}</div>
+            <div class="text-sm text-dim">秒</div>
+          </div>
+        </div>
+        ${picked.length ? `
+          <div class="text-dim text-sm mb-8">建议做这几个(每个 15 秒):</div>
+          ${picked.map(p => `
+            <div class="card recovery-item">
+              <div class="card-row">
+                <div>
+                  <div class="fw-600">${p.nameZh}</div>
+                  <div class="text-xs text-dim">${(p.tips||[])[0] || ''}</div>
+                </div>
+              </div>
+            </div>
+          `).join('')}` : ''}
+      </div>
+      <div class="w-action-secondary">
+        <button class="btn btn-sm btn-ghost" data-act="warmup-skip">跳过热身</button>
+        <button class="btn btn-sm btn-ghost" data-act="warmup-disable">永不显示</button>
+      </div>
+      <div class="w-actions">
+        <button class="btn btn-primary btn-block" data-act="warmup-done">
+          <svg viewBox="0 0 24 24"><use href="#i-check"/></svg>
+          准备好了,开始
+        </button>
+      </div>
+    `;
+
+    root().querySelector('[data-act="quit"]').addEventListener('click', confirmQuit);
+    root().querySelector('[data-act="warmup-skip"]').addEventListener('click', () => {
+      state.phase = 'set'; render();
+    });
+    root().querySelector('[data-act="warmup-done"]').addEventListener('click', () => {
+      state.phase = 'set'; render();
+    });
+    root().querySelector('[data-act="warmup-disable"]').addEventListener('click', async () => {
+      await Storage.saveSettings({ warmupDisabled: true });
+      state.phase = 'set'; render();
+      UI.toast('已关闭热身提示,可在设置里重新开启', { ttl: 2000 });
+    });
   }
 
   // ---------- SET phase ----------
@@ -157,9 +266,14 @@
       <div class="w-body">
         <div class="w-meta-top">
           <span>动作 ${exIdx + 1} / ${day.exercises.length}</span>
-          <span>·</span>
-          <span>第 <strong>${setIdx + 1}</strong> 组 / ${totalSets}</span>
           ${exIdx === 0 && setIdx === 0 ? `<span class="bpm-hint">${suggestBpm(day.type)}</span>` : ''}
+        </div>
+        <div class="set-dots">
+          ${Array.from({length: totalSets}, (_, i) => {
+            const cls = i < setIdx ? 'done' : (i === setIdx ? 'current' : '');
+            return `<span class="set-dot ${cls}"></span>`;
+          }).join('')}
+          <span class="set-dot-label">第 ${setIdx + 1} / ${totalSets} 组</span>
         </div>
         <div class="w-exercise-name">
           ${ex.nameZh}
@@ -574,6 +688,8 @@
         if (on) AudioCue.speak(`新纪录,${ex.nameZh} ${weight}公斤`, { rate: 1.0 });
       });
       UI.toast(`🏆 新 PR · ${ex.nameZh} ${weight}kg×${reps}`, { type: 'success', icon: 'i-trophy', ttl: 3500 });
+      // 在 root 上撒少量彩纸
+      UI.spawnConfettiAt(root(), 20);
     }
   }
 
