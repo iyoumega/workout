@@ -164,6 +164,33 @@
     return showLoading(`${coachName}${verb || '思考中'}…`);
   }
 
+  // ---------- 成就解锁卡片 ----------
+  function unlockAchievement(achievement) {
+    if (!achievement) return;
+    const root = document.getElementById('app');
+    const node = document.createElement('div');
+    node.className = 'achievement-pop';
+    node.innerHTML = `
+      <div class="ap-shine"></div>
+      <div class="ap-icon">
+        <svg viewBox="0 0 24 24" width="32" height="32"><use href="#${achievement.icon || 'i-trophy'}"/></svg>
+      </div>
+      <div class="ap-text">
+        <div class="ap-tag">新成就解锁</div>
+        <div class="ap-title">${achievement.title}</div>
+        <div class="ap-desc">${achievement.desc}</div>
+      </div>
+    `;
+    root.appendChild(node);
+    requestAnimationFrame(() => node.classList.add('show'));
+    setTimeout(() => {
+      node.classList.remove('show');
+      setTimeout(() => node.remove(), 400);
+    }, 3200);
+    try { if (navigator.vibrate) navigator.vibrate([60,30,80]); } catch(e){}
+    if (typeof AudioCue !== 'undefined') AudioCue.beep(1400, 0.18);
+  }
+
   // ---------- 数字 count-up ----------
   function countUp(el, target, opts) {
     if (!el) return;
@@ -201,5 +228,5 @@
     return '晚安';
   }
 
-  global.UI = { toast, confirmModal, showModal, closeModal, celebrate, greeting, showLoading, showLoadingWithCoach, countUp, applyCountUp, spawnConfettiAt };
+  global.UI = { toast, confirmModal, showModal, closeModal, celebrate, greeting, showLoading, showLoadingWithCoach, countUp, applyCountUp, spawnConfettiAt, unlockAchievement };
 })(window);

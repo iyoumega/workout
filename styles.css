@@ -200,7 +200,13 @@ h3 { font-size: 16px; font-weight: 600; }
   border-radius: 14px;
   padding: 16px;
   margin-bottom: 12px;
-  transition: background 0.2s var(--ease), transform 0.2s var(--ease);
+  transition: background 0.2s var(--ease), transform 0.15s var(--ease), border-color 0.2s var(--ease);
+}
+.swap-option:active,
+.day-block:active,
+.history-row:active,
+.list-item:active {
+  transform: scale(0.985);
 }
 .card-row {
   display: flex; align-items: center; justify-content: space-between;
@@ -1402,6 +1408,124 @@ h3 { font-size: 16px; font-weight: 600; }
   display: inline-block;
 }
 
+/* ===== 成就解锁弹出卡 ===== */
+.achievement-pop {
+  position: fixed;
+  top: calc(var(--safe-top) + 16px);
+  left: 16px; right: 16px;
+  max-width: 420px;
+  margin: 0 auto;
+  z-index: 290;
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #2a1530 0%, #1f1426 60%);
+  border: 1px solid rgba(255,107,53,0.4);
+  border-radius: 16px;
+  box-shadow: 0 12px 36px rgba(232,93,36,0.45), 0 0 60px rgba(255,91,156,0.2);
+  transform: translateY(-120%);
+  opacity: 0;
+  transition: transform 0.45s var(--ease), opacity 0.3s ease;
+  overflow: hidden;
+}
+.achievement-pop.show { transform: translateY(0); opacity: 1; }
+.achievement-pop .ap-icon {
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  background: var(--grad-warm);
+  background-size: 200% 200%;
+  animation: hero-shift 4s ease infinite;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  flex: 0 0 56px;
+  box-shadow: 0 6px 20px rgba(255,107,53,0.45);
+}
+.achievement-pop .ap-text { flex: 1; min-width: 0; }
+.achievement-pop .ap-tag {
+  font-size: 10px; font-weight: 700;
+  color: var(--color-flash);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+.achievement-pop .ap-title {
+  font-size: 17px; font-weight: 700;
+  color: var(--text);
+}
+.achievement-pop .ap-desc {
+  font-size: 12px; color: var(--text-dim);
+  margin-top: 2px;
+}
+.achievement-pop .ap-shine {
+  position: absolute;
+  top: -60%; right: -40%;
+  width: 120%; height: 220%;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.08) 50%, transparent 70%);
+  pointer-events: none;
+  animation: shine 2.6s ease infinite;
+}
+@keyframes shine {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(50%); }
+}
+
+/* ===== 历史列表 ===== */
+.history-month { margin-bottom: 14px; }
+.history-month-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+.history-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: background 0.15s var(--ease);
+}
+.history-row:active { background: var(--card-hover); }
+.history-date {
+  flex: 0 0 44px;
+  text-align: center;
+  padding: 6px 0;
+  background: rgba(232,93,36,0.08);
+  border-radius: 8px;
+}
+.history-day {
+  font-size: 18px; font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.history-dow { font-size: 10px; color: var(--text-dim); }
+.history-content { flex: 1; min-width: 0; }
+.history-content .fw-500 {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ===== 时间预算选择 ===== */
+.budget-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.budget-opt {
+  padding: 18px 12px;
+  background: var(--card);
+  border: 2px solid transparent;
+  border-radius: 14px;
+  text-align: center;
+  transition: border-color 0.2s var(--ease), transform 0.1s var(--ease);
+  cursor: pointer;
+}
+.budget-opt:active { transform: scale(0.97); border-color: var(--accent); }
+.budget-min { font-size: 28px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.budget-label { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
 /* ===== 热身阶段 hero ===== */
 .warmup-hero {
   text-align: center;
@@ -1563,6 +1687,28 @@ h3 { font-size: 16px; font-weight: 600; }
   line-height: 1.6;
 }
 .mood-advice strong { color: var(--accent); margin-right: 6px; }
+.mood-freeform {
+  display: flex; gap: 6px; align-items: center;
+  margin-top: 10px;
+}
+.mood-freeform input {
+  flex: 1;
+  height: 38px;
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 13px;
+  outline: none;
+}
+.mood-freeform input:focus { border-color: var(--accent); }
+.mood-freeform .btn-icon {
+  width: 38px; height: 38px;
+  background: var(--grad-orange);
+  border: none;
+  color: #fff;
+}
 
 /* ===== 适配建议卡 ===== */
 .adapt-card {

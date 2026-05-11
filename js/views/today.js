@@ -165,6 +165,12 @@
           </button>
         </div>
         ${log.moodAdvice ? `<div class="mood-advice"><strong>${log.moodAdvice.coach||'教练'}:</strong>${log.moodAdvice.text}</div>` : ''}
+        <div class="mood-freeform">
+          <input id="mood-free-input" placeholder="或者直接说:我今天背还酸..." />
+          <button class="btn btn-icon" data-act="mood-send" aria-label="发送">
+            <svg viewBox="0 0 24 24" width="16" height="16"><use href="#i-arrow-r"/></svg>
+          </button>
+        </div>
       </div>
     ` : '';
 
@@ -514,7 +520,10 @@
     const todayKey = Planner.toDateKey(new Date());
 
     document.getElementById('start-workout')?.addEventListener('click', async () => {
-      await WorkoutMode.start(day, log, {
+      const choice = await chooseTimeBudget(day);
+      if (choice === null) return; // 用户取消
+      const useDay = choice === 'full' ? day : compressDayToBudget(day, choice);
+      await WorkoutMode.start(useDay, log, {
         onFinish: async (finishedLog) => {
           await render();
           if (finishedLog.completedAt) {
@@ -563,6 +572,36 @@
     root().querySelectorAll('[data-act="rest"]').forEach(btn => {
       btn.addEventListener('click', () => startTimer(Number(btn.dataset.rest)));
     });
+
+    // 自由输入心情/反馈
+    const moodSendBtn = root().querySelector('[data-act="mood-send"]');
+    const moodInput = root().querySelector('#mood-free-input');
+    if (moodSendBtn && moodInput) {
+      const sendFree = async () => {
+        const text = moodInput.value.trim();
+        if (!text) return;
+        moodInput.value = '';
+        moodInput.blur();
+        const profile = await Storage.getProfile();
+        const closeLoading = await UI.showLoadingWithCoach('在听你说');
+        try {
+          // 复用 chat 流程,让 AI 基于一句话给建议
+          const reply = await AIPlanner.chat([{ role: 'user', content: '我今天:' + text }]);
+          const coach = await AIPlanner.getCoachIdentity();
+          log.moodAdvice = { mood: 'free', text: reply.text, coach: coach.name, freeText: text, at: new Date().toISOString() };
+          await Storage.saveLog(todayKey, log);
+          closeLoading();
+          render();
+        } catch (e) {
+          closeLoading();
+          UI.toast('暂时联不上,稍后再说', { type: 'error' });
+        }
+      };
+      moodSendBtn.addEventListener('click', sendFree);
+      moodInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); sendFree(); }
+      });
+    }
 
     // 心情打卡
     root().querySelectorAll('[data-mood]').forEach(b => {
@@ -633,14 +672,93 @@
         }).catch(()=>{});
 
         if (newOnes.length) {
-          setTimeout(() => {
-            UI.toast(`新成就:${newOnes[0].title}`, { type: 'success', icon: 'i-trophy', ttl: 3000 });
-          }, 800);
+          // 依次解锁多个
+          newOnes.forEach((a, i) => {
+            setTimeout(() => UI.unlockAchievement(a), 900 + i * 3500);
+          });
         }
 
         setTimeout(() => render(), 600);
       });
     }
+  }
+
+  function chooseTimeBudget(day) {
+    const fullMin = estimateDuration(day);
+    return new Promise(resolve => {
+      UI.showModal(`
+        <div class="modal-box">
+          <div class="modal-title">今天有多少时间?</div>
+          <div class="modal-text">完整计划约需 ${fullMin} 分钟。时间紧也可以挑一个,系统会压缩。</div>
+          <div class="budget-grid">
+            <button class="budget-opt" data-budget="full">
+              <div class="budget-min">${fullMin}</div>
+              <div class="budget-label">完整</div>
+            </button>
+            <button class="budget-opt" data-budget="45">
+              <div class="budget-min">45</div>
+              <div class="budget-label">中等</div>
+            </button>
+            <button class="budget-opt" data-budget="30">
+              <div class="budget-min">30</div>
+              <div class="budget-label">压缩</div>
+            </button>
+            <button class="budget-opt" data-budget="20">
+              <div class="budget-min">20</div>
+              <div class="budget-label">极简</div>
+            </button>
+          </div>
+          <div class="modal-actions mt-16">
+            <button class="btn btn-secondary btn-block" data-act="cancel">取消</button>
+          </div>
+        </div>
+      `, (modal, close) => {
+        modal.querySelectorAll('[data-budget]').forEach(b => {
+          b.addEventListener('click', () => {
+            const v = b.dataset.budget;
+            close();
+            resolve(v === 'full' ? 'full' : Number(v));
+          });
+        });
+        modal.querySelector('[data-act="cancel"]').addEventListener('click', () => {
+          close();
+          resolve(null);
+        });
+      });
+    });
+  }
+
+  function compressDayToBudget(day, budgetMin) {
+    // 深拷贝
+    const copy = JSON.parse(JSON.stringify(day));
+    // 策略:从末尾(往往是孤立动作)开始,删 → 减组,直到估算时长 ≤ 预算
+    let it = 0;
+    while (it++ < 30) {
+      const cur = estimateDuration(copy);
+      if (cur <= budgetMin) break;
+      // 优先削减末尾孤立动作的组数,再考虑删除
+      const last = copy.exercises[copy.exercises.length - 1];
+      if (!last) break;
+      const def = ExerciseLib.findById(last.id);
+      const isIsolation = def && !def.isCompound;
+      if (last.sets > 2) {
+        last.sets -= 1;
+      } else if (isIsolation) {
+        copy.exercises.pop();
+      } else if (last.sets > 2) {
+        last.sets -= 1;
+      } else {
+        copy.exercises.pop();
+      }
+    }
+    // 至少保留 2 个动作
+    if (copy.exercises.length < 2 && day.exercises.length >= 2) {
+      copy.exercises = day.exercises.slice(0, 2).map(e => ({ ...e, sets: Math.max(2, e.sets - 1) }));
+    }
+    copy._compressedFrom = day.exercises.length;
+    copy._budgetMin = budgetMin;
+    copy.title = day.title + ` · ${budgetMin}分钟版`;
+    return copy;
   }
 
   function estimateDuration(day) {

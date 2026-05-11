@@ -832,8 +832,13 @@
     root().querySelector('[data-act="done"]').addEventListener('click', () => {
       const finishedLog = state.log;
       const onFinish = state.onFinish;
+      const newAch = (state.newAchievements || []).slice();
       hide();
       onFinish(finishedLog);
+      // 依次弹解锁动画
+      newAch.forEach((a, i) => {
+        setTimeout(() => UI.unlockAchievement(a), 600 + i * 3500);
+      });
     });
   }
 

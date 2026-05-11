@@ -139,6 +139,11 @@
         <span class="label">本周日记</span>
         <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
       </div>
+      <div class="list-item" data-act="open-history">
+        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-clock"/></svg></span>
+        <span class="label">训练历史</span>
+        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+      </div>
 
       <div class="section-title">操作</div>
       <div class="list-item" data-act="edit-profile">
@@ -605,6 +610,7 @@
       'settings': () => SettingsView.open(),
       'open-chat': () => ChatView.open(),
       'open-journal': () => openJournal(),
+      'open-history': () => openHistoryList(),
       'custom-exercises': () => openCustomExercises(),
       'edit-profile': async () => {
         const profile = await Storage.getProfile();
@@ -1078,6 +1084,83 @@
 
   function escapeHtml(s) {
     return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  }
+
+  // ---------- 训练历史列表 ----------
+  async function openHistoryList() {
+    const logs = await Storage.listLogs();
+    const entries = Object.entries(logs)
+      .filter(([_, l]) => l && l.completedAt)
+      .sort((a, b) => b[0].localeCompare(a[0]));
+
+    if (!entries.length) {
+      UI.toast('还没有训练记录', { type: 'error' });
+      return;
+    }
+
+    // 按月分组
+    const byMonth = {};
+    entries.forEach(([date, log]) => {
+      const ym = date.slice(0, 7);
+      if (!byMonth[ym]) byMonth[ym] = [];
+      byMonth[ym].push({ date, log });
+    });
+
+    UI.showModal(`
+      <div class="sheet">
+        <div class="sheet-header">
+          <h2 style="margin:0">训练历史</h2>
+          <button class="btn btn-icon" data-act="close"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="sheet-body">
+          <div class="text-xs text-dim mb-12">共 ${entries.length} 次训练</div>
+          ${Object.keys(byMonth).sort((a, b) => b.localeCompare(a)).map(ym => {
+            const items = byMonth[ym];
+            return `
+              <div class="history-month">
+                <div class="history-month-label">${ym.replace('-', '/')} · ${items.length} 次</div>
+                ${items.map(({ date, log }) => {
+                  const totalSets = (log.completedExercises || []).reduce((s, e) => s + (e.sets ? e.sets.length : 0), 0);
+                  const dur = log.durationSec ? Math.round(log.durationSec / 60) + 'min' : '';
+                  const exNames = (log.completedExercises || []).map(e => {
+                    const def = ExerciseLib.findById(e.id);
+                    return def ? def.nameZh : e.id;
+                  }).slice(0, 3).join('、');
+                  const more = (log.completedExercises || []).length > 3 ? '...' : '';
+                  return `
+                    <div class="history-row" data-date="${date}">
+                      <div class="history-date">
+                        <div class="history-day">${date.slice(8, 10)}</div>
+                        <div class="history-dow">${dowZh(date)}</div>
+                      </div>
+                      <div class="history-content">
+                        <div class="fw-500">${exNames}${more}</div>
+                        <div class="text-xs text-dim">${totalSets} 组 · ${dur}</div>
+                      </div>
+                      <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `, (modal, close) => {
+      modal.querySelector('[data-act="close"]').addEventListener('click', close);
+      modal.addEventListener('click', e => { if (e.target === modal) close(); });
+      modal.querySelectorAll('[data-date]').forEach(row => {
+        row.addEventListener('click', () => {
+          close();
+          setTimeout(() => HistoryView.open(row.dataset.date), 250);
+        });
+      });
+    });
+  }
+
+  function dowZh(dateStr) {
+    const dows = ['日','一','二','三','四','五','六'];
+    return '周' + dows[new Date(dateStr).getDay()];
   }
 
   // ---------- 体重目标编辑 ----------
