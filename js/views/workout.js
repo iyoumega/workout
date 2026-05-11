@@ -286,7 +286,7 @@
         ${renderActiveMuscle(ex)}
 
         <div class="w-target">
-          <div class="w-target-row"><span>目标</span><strong>${ex.reps} 次</strong></div>
+          <div class="w-target-row"><span>目标</span><strong>${ex.timeBased ? ex.reps : ex.reps + ' 次'}</strong></div>
           <div class="w-target-row"><span>组间休息</span><strong>${ex.restSec}s</strong></div>
           ${weightHint ? `<div class="w-target-row"><span>建议重量</span><strong style="color:var(--accent)">${weightHint}</strong></div>` : ''}
         </div>
@@ -309,6 +309,7 @@
         ` : ''}
 
         <div class="w-set-input">
+          ${ex.timeBased ? '' : `
           <div class="w-set-input-block">
             <label>重量 (kg)</label>
             <div class="num-stepper">
@@ -316,16 +317,17 @@
               <input id="w-weight" type="number" inputmode="decimal" step="2.5" min="0" value="${prefillWeight}" placeholder="可选" />
               <button class="num-btn" data-step="weight:+2.5"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
             </div>
-          </div>
+          </div>`}
           <div class="w-set-input-block">
-            <label>次数</label>
+            <label>${ex.timeBased ? '秒数' : '次数'}</label>
             <div class="num-stepper">
-              <button class="num-btn" data-step="reps:-1"><svg viewBox="0 0 24 24"><use href="#i-minus"/></svg></button>
-              <input id="w-reps" type="number" inputmode="numeric" step="1" min="0" value="${prefillReps}" />
-              <button class="num-btn" data-step="reps:+1"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
+              <button class="num-btn" data-step="reps:-${ex.timeBased ? 5 : 1}"><svg viewBox="0 0 24 24"><use href="#i-minus"/></svg></button>
+              <input id="w-reps" type="number" inputmode="numeric" step="${ex.timeBased ? 5 : 1}" min="0" value="${ex.timeBased ? parseSeconds(ex.reps, prefillReps) : prefillReps}" />
+              <button class="num-btn" data-step="reps:+${ex.timeBased ? 5 : 1}"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
             </div>
           </div>
         </div>
+        ${ex.timeBased ? '<div class="text-xs text-faint mt-8 center">秒数是该组持续时间</div>' : ''}
 
         <div class="exercise-tips mt-16">
           <ul>${ex.tips.map(t => `<li>${t}</li>`).join('')}</ul>
@@ -457,7 +459,8 @@
   }
 
   async function finishSet() {
-    const weight = Number(document.getElementById('w-weight').value) || null;
+    const wInput = document.getElementById('w-weight');
+    const weight = wInput ? (Number(wInput.value) || null) : null;
     const reps = Math.max(1, Math.round(Number(document.getElementById('w-reps').value) || 0));
     const ex = state.day.exercises[state.exIdx];
 
@@ -967,6 +970,11 @@ ${exLines}
     if (!repsStr) return 8;
     const m = String(repsStr).match(/(\d+)/);
     return m ? Number(m[1]) : 8;
+  }
+  function parseSeconds(repsStr, fallback) {
+    if (!repsStr) return fallback || 30;
+    const m = String(repsStr).match(/(\d+)/);
+    return m ? Number(m[1]) : (fallback || 30);
   }
   function deepCopy(o) { return JSON.parse(JSON.stringify(o)); }
   function beep() {

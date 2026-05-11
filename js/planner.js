@@ -41,12 +41,26 @@
     rest:    '休息日',
   };
 
+  // 按时间算的动作 id 集合
+  const TIME_BASED_IDS = new Set([
+    'plank', 'side_plank', 'hollow_hold', 'wall_sit',
+    'mountain_climber', 'jumping_jack', 'high_knee', 'jump_rope',
+  ]);
+  function isTimeBased(id) { return TIME_BASED_IDS.has(id); }
+
   // ---- Reps/sets profile by goal & experience ----
-  function repsForGoal(goal, isCompound) {
+  function repsForGoal(goal, isCompound, exId) {
+    if (exId && isTimeBased(exId)) {
+      // 用秒数代替次数
+      if (goal === 'muscle_gain') return '30s';
+      if (goal === 'fat_loss')    return '40s';
+      if (goal === 'shape')       return '30s';
+      return '30s';
+    }
     if (goal === 'muscle_gain') return isCompound ? '6-10' : '10-12';
     if (goal === 'fat_loss')    return isCompound ? '10-12' : '12-15';
     if (goal === 'shape')       return isCompound ? '8-12' : '12-15';
-    return isCompound ? '8-12' : '10-12'; // maintain
+    return isCompound ? '8-12' : '10-12';
   }
   function setsForExperience(experience, isCompound) {
     if (experience === 'beginner')   return isCompound ? 3 : 2;
@@ -142,8 +156,9 @@
         nameEn: ex.nameEn,
         muscles: ex.muscles,
         sets,
-        reps: repsForGoal(profile.goal, ex.isCompound),
+        reps: repsForGoal(profile.goal, ex.isCompound, ex.id),
         restSec: restForGoal(profile.goal, ex.isCompound),
+        timeBased: isTimeBased(ex.id),
         suggestedWeight,
         isFocus,
         tips: ex.tips,

@@ -1675,6 +1675,24 @@ h3 { font-size: 16px; font-weight: 600; }
   color: var(--text-dim);
   text-align: right;
 }
+.quote-refresh {
+  position: absolute;
+  top: 10px; right: 12px;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: rgba(167,139,250,0.18);
+  color: var(--color-violet);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2;
+}
+.quote-refresh:active { background: rgba(167,139,250,0.35); }
+.quote-flash {
+  animation: quote-flash 0.5s ease;
+}
+@keyframes quote-flash {
+  0% { transform: scale(0.98); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
 
 /* ===== 节拍器 ON 指示 ===== */
 .metro-on {

@@ -161,8 +161,9 @@ ${lib.map(e => `${e.id}|${e.name}|${e.muscles}|${e.compound?'复合':'孤立'}`)
             nameEn: ex.nameEn,
             muscles: ex.muscles,
             sets,
-            reps: repsForGoal(profile.goal, ex.isCompound),
+            reps: repsForGoal(profile.goal, ex.isCompound, ex.id),
             restSec: restForGoal(profile.goal, ex.isCompound),
+            timeBased: TIME_BASED_IDS.has(ex.id),
             suggestedWeight,
             isFocus,
             tips: ex.tips,
@@ -219,8 +220,16 @@ ${lib.map(e => `${e.id}|${e.name}|${e.muscles}|${e.compound?'复合':'孤立'}`)
     }
   }
 
-  // 复用 planner.js 里的强度规则
-  function repsForGoal(goal, isCompound) {
+  const TIME_BASED_IDS = new Set([
+    'plank', 'side_plank', 'hollow_hold', 'wall_sit',
+    'mountain_climber', 'jumping_jack', 'high_knee', 'jump_rope',
+  ]);
+
+  function repsForGoal(goal, isCompound, exId) {
+    if (exId && TIME_BASED_IDS.has(exId)) {
+      if (goal === 'fat_loss') return '40s';
+      return '30s';
+    }
     if (goal === 'muscle_gain') return isCompound ? '6-10' : '10-12';
     if (goal === 'fat_loss')    return isCompound ? '10-12' : '12-15';
     if (goal === 'shape')       return isCompound ? '8-12' : '12-15';

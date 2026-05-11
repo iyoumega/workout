@@ -196,9 +196,9 @@
           </div>
           <div class="exercise-meta">
             <div class="exercise-meta-item"><strong>${ex.sets}</strong>组</div>
-            <div class="exercise-meta-item"><strong>${ex.reps}</strong>次</div>
+            <div class="exercise-meta-item"><strong>${ex.reps}</strong>${ex.timeBased ? '' : '次'}</div>
             <div class="exercise-meta-item">休息<strong style="margin-left:4px">${ex.restSec}</strong>s</div>
-            ${weightHint ? `<div class="exercise-meta-item weight-hint">建议<strong style="margin-left:4px">${weightHint}</strong></div>` : ''}
+            ${weightHint && !ex.timeBased ? `<div class="exercise-meta-item weight-hint">建议<strong style="margin-left:4px">${weightHint}</strong></div>` : ''}
           </div>
           ${setsLogged > 0 ? `
             <div class="w-history-strip mt-8">
@@ -520,10 +520,13 @@
     if (!global.Quotes) return '';
     const q = Quotes.today();
     return `
-      <div class="quote-card">
+      <div class="quote-card" id="quote-card">
+        <button class="quote-refresh" data-act="quote-refresh" title="换一句">
+          <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-refresh"/></svg>
+        </button>
         <div class="quote-mark">"</div>
-        <div class="quote-text">${q.text}</div>
-        <div class="quote-by">— ${q.by}</div>
+        <div class="quote-text" id="quote-text">${q.text}</div>
+        <div class="quote-by" id="quote-by">— ${q.by}</div>
       </div>
     `;
   }
@@ -625,6 +628,21 @@
 
     root().querySelectorAll('[data-act="rest"]').forEach(btn => {
       btn.addEventListener('click', () => startTimer(Number(btn.dataset.rest)));
+    });
+
+    // 金句刷新
+    root().querySelector('[data-act="quote-refresh"]')?.addEventListener('click', () => {
+      const q = Quotes.random();
+      const t = document.getElementById('quote-text');
+      const b = document.getElementById('quote-by');
+      if (t) t.textContent = q.text;
+      if (b) b.textContent = '— ' + q.by;
+      const card = document.getElementById('quote-card');
+      if (card) {
+        card.classList.remove('quote-flash');
+        void card.offsetWidth;
+        card.classList.add('quote-flash');
+      }
     });
 
     // 自由输入心情/反馈
