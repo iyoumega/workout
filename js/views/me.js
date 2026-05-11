@@ -189,7 +189,7 @@
       <input type="file" id="import-file" accept="application/json" hidden />
 
       <div class="text-faint text-xs center mt-24" style="margin-bottom: 16px">
-        v0.3 · 数据仅保存在本机浏览器
+        v0.8.1 · 数据仅保存在本机浏览器
       </div>
     `;
 
@@ -608,7 +608,7 @@
   function bindEvents() {
     const handlers = {
       'settings': () => SettingsView.open(),
-      'open-chat': () => ChatView.open(),
+      'open-chat': () => (typeof openChatSafely === 'function' ? openChatSafely() : ChatView.open()),
       'open-journal': () => openJournal(),
       'open-history': () => openHistoryList(),
       'custom-exercises': () => openCustomExercises(),

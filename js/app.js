@@ -70,16 +70,29 @@
   function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+
+    let reloadOnce = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloadOnce) return;
+      reloadOnce = true;
+      // 新 SW 接管后,自动重载一次以拉新 JS/CSS
+      location.reload();
+    });
+
     navigator.serviceWorker.register('sw.js').then(reg => {
       reg.addEventListener('updatefound', () => {
         const installing = reg.installing;
         if (!installing) return;
         installing.addEventListener('statechange', () => {
           if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-            UI.toast('新版本已就绪,刷新使用', { type: 'success', icon: 'i-refresh', ttl: 4000 });
+            UI.toast('正在更新到新版本...', { type: 'success', icon: 'i-refresh', ttl: 3000 });
+            // 让新 SW 立即接管,触发 controllerchange → 自动 reload
+            try { installing.postMessage('SKIP_WAITING'); } catch(e){}
           }
         });
       });
+      // 每次启动主动检查更新
+      try { reg.update(); } catch(e){}
     }).catch(e => console.warn('SW register failed:', e));
   }
 
@@ -181,12 +194,33 @@
     await switchTab(currentTab || 'today');
   }
 
+  // 防御性打开聊天:任何环节出错都让用户看到提示,不是无声失败
+  async function openChatSafely() {
+    try {
+      if (typeof ChatView === 'undefined' || !ChatView.open) {
+        UI.toast('聊天模块未加载,请下拉刷新一次', { type: 'error', ttl: 3500 });
+        return;
+      }
+      const root = document.getElementById('chat-root');
+      if (!root) {
+        UI.toast('页面缺少 chat 容器,请下拉刷新', { type: 'error', ttl: 3500 });
+        return;
+      }
+      await ChatView.open();
+    } catch (e) {
+      console.error('ChatView.open failed', e);
+      UI.toast('打开聊天出错:' + (e && e.message || '未知'), { type: 'error', ttl: 4000 });
+    }
+  }
+  // 暴露给其他视图(me.js)用
+  global.openChatSafely = openChatSafely;
+
   function bindTabs() {
     document.querySelectorAll('.tab[data-tab]').forEach(tab => {
       tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
     document.getElementById('chat-fab')?.addEventListener('click', () => {
-      ChatView.open();
+      openChatSafely();
     });
   }
 

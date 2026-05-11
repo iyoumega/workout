@@ -5,7 +5,7 @@
  *   - AI 接口(mega-deepseek.cylsport52330.workers.dev): 永远走网络,不缓存
  *   - 图片(B站等外链): 不拦截
  */
-const VERSION = 'v0.8.0';
+const VERSION = 'v0.8.1';
 const SHELL_CACHE = 'shell-' + VERSION;
 const SHELL_FILES = [
   './',
@@ -61,10 +61,28 @@ self.addEventListener('fetch', e => {
   // 仅处理同源 GET
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
 
+  // 对于导航 / index.html 请求 → 网络优先,失败回退缓存
+  // 这样总能拿到最新的 HTML(里面引用的 JS 路径不变,缓存命中)
+  const isNavigation = e.request.mode === 'navigate' ||
+    url.pathname.endsWith('/') ||
+    url.pathname.endsWith('/index.html');
+  if (isNavigation) {
+    e.respondWith(
+      fetch(e.request).then(resp => {
+        if (resp && resp.ok) {
+          const clone = resp.clone();
+          caches.open(SHELL_CACHE).then(c => c.put(e.request, clone)).catch(()=>{});
+        }
+        return resp;
+      }).catch(() => caches.match(e.request).then(c => c || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // 其它资源:stale-while-revalidate
   e.respondWith(
     caches.match(e.request).then(cached => {
       const network = fetch(e.request).then(resp => {
-        // 后台更新缓存(只缓存 200 响应)
         if (resp && resp.ok) {
           const clone = resp.clone();
           caches.open(SHELL_CACHE).then(c => c.put(e.request, clone)).catch(()=>{});
