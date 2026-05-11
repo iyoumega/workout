@@ -1408,6 +1408,43 @@ h3 { font-size: 16px; font-weight: 600; }
   display: inline-block;
 }
 
+/* ===== 计划编辑器 ===== */
+.edit-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+.edit-row-info { flex: 1; min-width: 0; }
+.edit-row-info .fw-500 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edit-row-actions { display: flex; gap: 4px; }
+.btn-sm-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  padding: 0;
+  flex: 0 0 32px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.btn-sm-icon:active { background: var(--card); }
+.btn-sm-icon[disabled] { opacity: 0.3; pointer-events: none; }
+.btn-sm-icon:last-child { color: var(--danger); }
+
+.picker-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: background 0.15s var(--ease);
+}
+.picker-row:active { background: var(--card-hover); }
+
 /* ===== 成就解锁弹出卡 ===== */
 .achievement-pop {
   position: fixed;
@@ -1960,6 +1997,44 @@ h3 { font-size: 16px; font-weight: 600; }
   font-style: italic;
 }
 .w-coach-message:empty { display: none; }
+
+/* ===== FAB 提示泡 + 脉动光晕 ===== */
+.fab-tip-bubble {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--tab-bar-h) + var(--safe-bottom) + 76px);
+  max-width: 220px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  color: #fff;
+  border-radius: 14px;
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgba(232,93,36,0.5);
+  z-index: 80;
+  opacity: 0; transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s var(--ease);
+}
+.fab-tip-bubble.show { opacity: 1; transform: translateY(0); }
+.fab-tip-bubble::after {
+  content: '';
+  position: absolute;
+  right: 24px; bottom: -8px;
+  width: 0; height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid var(--accent);
+}
+.fab-tip-pulse::after {
+  content: '';
+  position: absolute; inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: fab-ring 1.4s ease-out infinite;
+}
+@keyframes fab-ring {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
 
 /* ===== 聊天浮动按钮 ===== */
 .chat-fab {

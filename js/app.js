@@ -96,6 +96,27 @@
     update();
   }
 
+  async function showFirstLaunchTip() {
+    const settings = await Storage.getSettings();
+    if (settings.firstLaunchTipShown) return;
+    await Storage.saveSettings({ firstLaunchTipShown: true });
+    const fab = document.getElementById('chat-fab');
+    if (!fab) return;
+    // 加临时光晕 + 提示泡
+    fab.classList.add('fab-tip-pulse');
+    const tip = document.createElement('div');
+    tip.className = 'fab-tip-bubble';
+    const coach = (settings.coachName || '教练');
+    tip.textContent = `有问题随时问 ${coach},点这里聊一聊`;
+    document.body.appendChild(tip);
+    requestAnimationFrame(() => tip.classList.add('show'));
+    setTimeout(() => {
+      tip.classList.remove('show');
+      setTimeout(() => tip.remove(), 300);
+      fab.classList.remove('fab-tip-pulse');
+    }, 5500);
+  }
+
   function hideSplash() {
     const splash = document.getElementById('splash');
     if (!splash) return;
@@ -142,7 +163,9 @@
         await enterMain();
         checkCapacity();
         if (!isEdit) {
-          UI.toast('计划已生成,开练吧!', { type: 'success', icon: 'i-flash' });
+          UI.toast('计划已生成,开练吧', { type: 'success', icon: 'i-flash' });
+          // 首次进主界面,2 秒后提示 FAB
+          setTimeout(() => showFirstLaunchTip(), 2200);
         }
       } catch (e) {
         console.error(e);

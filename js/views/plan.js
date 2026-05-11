@@ -113,7 +113,11 @@
               <div class="text-sm" style="color:var(--accent); font-weight:600">${ex.sets}×${ex.reps}</div>
             </div>
           </div>
-        `).join('')
+        `).join('') + `
+          <button class="btn btn-sm btn-secondary btn-block mt-12" data-edit-day="${d.dayIndex}">
+            <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-edit"/></svg>
+            编辑这天的动作
+          </button>`
       : `<div class="ex-list">${d.exercises.map(e => e.nameZh).join('  ·  ')}</div>`;
 
     return `
@@ -152,6 +156,13 @@
         render();
       });
     });
+    root().querySelectorAll('[data-edit-day]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        openDayEditor(Number(btn.dataset.editDay));
+      });
+    });
+
     document.getElementById('regen')?.addEventListener('click', async () => {
       const ok = await UI.confirmModal({
         title: '重新生成本周计划?',
@@ -188,6 +199,173 @@
         closeLoading();
         UI.toast('AI 生成失败:' + e.message, { type: 'error', ttl: 3500 });
       }
+    });
+  }
+
+  async function openDayEditor(dayIndex) {
+    const plan = await Storage.getPlan();
+    const profile = await Storage.getProfile();
+    const day = plan.days[dayIndex];
+    if (!day) return;
+
+    function renderEditor() {
+      const exHtml = day.exercises.map((ex, i) => `
+        <div class="edit-row">
+          <div class="edit-row-info">
+            <div class="fw-500">${ex.nameZh}</div>
+            <div class="text-xs text-dim">${ex.muscles.join(' · ')} · ${ex.sets}×${ex.reps}</div>
+          </div>
+          <div class="edit-row-actions">
+            <button class="btn btn-icon btn-sm-icon" data-move="${i}:up" ${i===0?'disabled':''} title="上移">
+              <svg viewBox="0 0 24 24" width="14" height="14" style="transform:rotate(-90deg)"><use href="#i-chev"/></svg>
+            </button>
+            <button class="btn btn-icon btn-sm-icon" data-move="${i}:down" ${i===day.exercises.length-1?'disabled':''} title="下移">
+              <svg viewBox="0 0 24 24" width="14" height="14" style="transform:rotate(90deg)"><use href="#i-chev"/></svg>
+            </button>
+            <button class="btn btn-icon btn-sm-icon" data-remove="${i}" title="移除">
+              <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-trash"/></svg>
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      UI.showModal(`
+        <div class="sheet">
+          <div class="sheet-header">
+            <h2 style="margin:0">编辑 ${day.title}</h2>
+            <button class="btn btn-icon" data-act="close"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="sheet-body">
+            ${day.exercises.length === 0
+              ? '<div class="empty"><div class="empty-sub">这一天还没有动作</div></div>'
+              : exHtml}
+            <button class="btn btn-secondary btn-block mt-16" data-act="add">
+              <svg viewBox="0 0 24 24" width="16" height="16"><use href="#i-plus"/></svg>
+              添加动作
+            </button>
+          </div>
+        </div>
+      `, (modal, close) => {
+        modal.querySelector('[data-act="close"]').addEventListener('click', async () => {
+          await Storage.savePlan(plan);
+          close();
+          render();
+        });
+        modal.addEventListener('click', async e => {
+          if (e.target === modal) {
+            await Storage.savePlan(plan);
+            close();
+            render();
+          }
+        });
+        modal.querySelectorAll('[data-move]').forEach(b => {
+          b.addEventListener('click', () => {
+            const [idxStr, dir] = b.dataset.move.split(':');
+            const i = Number(idxStr);
+            const arr = day.exercises;
+            if (dir === 'up' && i > 0) {
+              [arr[i-1], arr[i]] = [arr[i], arr[i-1]];
+            } else if (dir === 'down' && i < arr.length - 1) {
+              [arr[i+1], arr[i]] = [arr[i], arr[i+1]];
+            }
+            close();
+            setTimeout(renderEditor, 50);
+          });
+        });
+        modal.querySelectorAll('[data-remove]').forEach(b => {
+          b.addEventListener('click', () => {
+            const i = Number(b.dataset.remove);
+            day.exercises.splice(i, 1);
+            close();
+            setTimeout(renderEditor, 50);
+          });
+        });
+        modal.querySelector('[data-act="add"]').addEventListener('click', async () => {
+          close();
+          const newId = await pickExerciseToAdd(profile, day);
+          if (!newId) return setTimeout(renderEditor, 50);
+          const def = ExerciseLib.findById(newId);
+          if (!def) return setTimeout(renderEditor, 50);
+          day.exercises.push({
+            id: def.id,
+            nameZh: def.nameZh,
+            nameEn: def.nameEn,
+            muscles: def.muscles,
+            sets: 3,
+            reps: '8-12',
+            restSec: 75,
+            suggestedWeight: WeightRef.suggest(def.id, profile),
+            isFocus: false,
+            tips: def.tips,
+            imageUrl: def.imageUrl,
+          });
+          setTimeout(renderEditor, 50);
+        });
+      });
+    }
+
+    renderEditor();
+  }
+
+  function pickExerciseToAdd(profile, day) {
+    return new Promise(resolve => {
+      const all = ExerciseLib.byVenue(profile.venue);
+      // 按肌群分组
+      const groups = {
+        chest: '胸', back: '背', shoulders: '肩', biceps: '二头', triceps: '三头',
+        quads: '股四头', hamstrings: '腘绳', glutes: '臀', calves: '小腿', core: '核心',
+      };
+      const grouped = {};
+      Object.keys(groups).forEach(k => { grouped[k] = []; });
+      all.forEach(ex => {
+        // 把每个动作放到第一个匹配的桶里
+        for (const k of ex.muscleKeys) {
+          if (grouped[k]) { grouped[k].push(ex); break; }
+        }
+      });
+
+      UI.showModal(`
+        <div class="sheet">
+          <div class="sheet-header">
+            <h2 style="margin:0">添加动作</h2>
+            <button class="btn btn-icon" data-act="close"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="sheet-body">
+            <input id="ex-search" type="text" placeholder="搜索动作名..." class="setting-input mb-12" />
+            <div id="ex-list">
+              ${Object.entries(groups).map(([k, label]) => {
+                const items = grouped[k] || [];
+                if (!items.length) return '';
+                return `
+                  <div class="text-xs text-dim mb-4" style="margin-top:8px">${label}</div>
+                  ${items.map(ex => `
+                    <div class="picker-row" data-pick="${ex.id}" data-name="${ex.nameZh}">
+                      <strong>${ex.nameZh}</strong>
+                      <span class="text-xs text-dim">${ex.isCompound?'复合':'孤立'}</span>
+                    </div>
+                  `).join('')}
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      `, (modal, close) => {
+        modal.querySelector('[data-act="close"]').addEventListener('click', () => { close(); resolve(null); });
+        modal.querySelectorAll('[data-pick]').forEach(row => {
+          row.addEventListener('click', () => {
+            close();
+            resolve(row.dataset.pick);
+          });
+        });
+        const search = modal.querySelector('#ex-search');
+        search.addEventListener('input', () => {
+          const q = search.value.trim().toLowerCase();
+          modal.querySelectorAll('[data-pick]').forEach(row => {
+            const name = (row.dataset.name || '').toLowerCase();
+            row.style.display = (!q || name.includes(q)) ? '' : 'none';
+          });
+        });
+      });
     });
   }
 
