@@ -205,8 +205,15 @@
         unit: 'metric',
         sound: true,
         vibration: true,
-        weekStart: 1,           // 1 = Monday
-        achievements: [],       // earned achievement ids
+        voice: true,           // 语音教练
+        metronome: false,      // 节拍器(默认关)
+        quietMode: false,      // 一键静音
+        warmupDisabled: false, // 是否跳过热身
+        aiTipDisabled: false,  // 今日 AI 点评
+        weekStart: 1,          // 1 = Monday
+        achievements: [],      // earned achievement ids
+        coachName: '小橙',
+        coachTone: 'friendly',
         ...(v || {}),
       };
     },
