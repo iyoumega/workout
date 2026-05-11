@@ -85,7 +85,7 @@
   // 在任意容器内撒纸屑(用于 PR 等小庆祝)
   function spawnConfettiAt(host, count) {
     if (!host) return;
-    const colors = ['#E85D24', '#fbbf24', '#4ade80', '#60a5fa', '#ff5b9c', '#a78bfa'];
+    const colors = ['#FF7A4D', '#FFD60A', '#32D74B', '#64D2FF', '#FF6482'];
     const N = count || 20;
     for (let i = 0; i < N; i++) {
       const c = document.createElement('span');
@@ -109,7 +109,7 @@
     const ov = document.getElementById('celebration-overlay');
     // 清旧
     ov.querySelectorAll('.confetti').forEach(n => n.remove());
-    const colors = ['#E85D24', '#fbbf24', '#4ade80', '#60a5fa', '#f5f5f5'];
+    const colors = ['#FF7A4D', '#FFD60A', '#32D74B', '#64D2FF', '#FF6482'];
     const N = 28;
     for (let i = 0; i < N; i++) {
       const c = document.createElement('span');

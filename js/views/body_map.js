@@ -9,7 +9,7 @@
   function render(activeMuscleKeys) {
     const active = new Set(activeMuscleKeys || []);
     const a = (key) => active.has(key) ? 'var(--accent)' : 'rgba(255,255,255,0.06)';
-    const aMid = (key) => active.has(key) ? 'rgba(232,93,36,0.55)' : 'rgba(255,255,255,0.04)';
+    const aMid = (key) => active.has(key) ? 'rgba(255,122,77,0.55)' : 'rgba(255,255,255,0.04)';
 
     return `
       <div class="bodymap-card card">

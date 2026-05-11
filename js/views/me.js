@@ -73,14 +73,8 @@
         </div>
       </div>
 
-      <div class="section-title">本周进度</div>
-      <div class="card">
-        <div class="progress-text">
-          <span class="text-sm">本周完成</span>
-          <span class="text-sm fw-600">${stats.weekDone} / ${stats.weekTotal}</span>
-        </div>
-        <div class="progress"><div class="progress-bar" style="width:${stats.weekTotal?stats.weekDone/stats.weekTotal*100:0}%"></div></div>
-      </div>
+      <div class="section-title">本周</div>
+      ${renderActivityRings(stats)}
 
       <div class="section-title row between" style="align-items:baseline">
         <span>体重追踪</span>
@@ -129,67 +123,79 @@
       ${renderPhotos(photos)}
 
       <div class="section-title">教练</div>
-      <div class="list-item" data-act="open-chat">
-        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-chat"/></svg></span>
-        <span class="label">和教练聊天</span>
-        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
-      </div>
-      <div class="list-item" data-act="open-journal">
-        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg></span>
-        <span class="label">本周日记</span>
-        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
-      </div>
-      <div class="list-item" data-act="open-history">
-        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-clock"/></svg></span>
-        <span class="label">训练历史</span>
-        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+      <div class="list-group">
+        <div class="list-item" data-act="open-chat">
+          <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-chat"/></svg></span>
+          <span class="label">和教练聊天</span>
+          <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+        </div>
+        <div class="list-item" data-act="open-journal">
+          <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg></span>
+          <span class="label">本周日记</span>
+          <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+        </div>
+        <div class="list-item" data-act="open-history">
+          <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-clock"/></svg></span>
+          <span class="label">训练历史</span>
+          <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+        </div>
       </div>
 
-      <div class="section-title">操作</div>
-      <div class="list-item" data-act="edit-profile">
-        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-edit"/></svg></span>
-        <span class="label">编辑档案</span>
-        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+      <div class="section-title">档案</div>
+      <div class="list-group">
+        <div class="list-item" data-act="edit-profile">
+          <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-edit"/></svg></span>
+          <span class="label">编辑档案</span>
+          <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+        </div>
+        <div class="list-item" data-act="update-photos">
+          <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-camera"/></svg></span>
+          <span class="label">更新体态照片</span>
+          <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+        </div>
+        <div class="list-item" data-act="custom-exercises">
+          <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></span>
+          <span class="label">自定义动作</span>
+          <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+        </div>
       </div>
-      <div class="list-item" data-act="update-photos">
-        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-camera"/></svg></span>
-        <span class="label">更新体态照片</span>
-        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+
+      <div class="section-title">计划</div>
+      <div class="list-group">
+        <div class="list-item" data-act="ai-regen-plan">
+          <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-sparkles"/></svg></span>
+          <span class="label">用 AI 重新生成计划</span>
+          <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+        </div>
+        <div class="list-item" data-act="regen-plan">
+          <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-refresh"/></svg></span>
+          <span class="label">规则生成计划</span>
+          <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+        </div>
       </div>
-      <div class="list-item" data-act="ai-regen-plan">
-        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-sparkles"/></svg></span>
-        <span class="label">用 AI 重新生成计划</span>
-        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
-      </div>
-      <div class="list-item" data-act="regen-plan">
-        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-refresh"/></svg></span>
-        <span class="label">规则生成计划</span>
-        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
-      </div>
-      <div class="list-item" data-act="custom-exercises">
-        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></span>
-        <span class="label">自定义动作</span>
-        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
-      </div>
-      <div class="list-item" data-act="export">
-        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-download"/></svg></span>
-        <span class="label">导出数据备份</span>
-        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
-      </div>
-      <div class="list-item" data-act="import">
-        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-upload"/></svg></span>
-        <span class="label">导入备份</span>
-        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
-      </div>
-      <div class="list-item danger" data-act="clear">
-        <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg></span>
-        <span class="label">清除全部数据</span>
-        <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+
+      <div class="section-title">数据</div>
+      <div class="list-group">
+        <div class="list-item" data-act="export">
+          <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-download"/></svg></span>
+          <span class="label">导出备份</span>
+          <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+        </div>
+        <div class="list-item" data-act="import">
+          <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-upload"/></svg></span>
+          <span class="label">导入备份</span>
+          <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+        </div>
+        <div class="list-item danger" data-act="clear">
+          <span class="icon"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg></span>
+          <span class="label">清除全部数据</span>
+          <span class="chev"><svg viewBox="0 0 24 24"><use href="#i-chev"/></svg></span>
+        </div>
       </div>
       <input type="file" id="import-file" accept="application/json" hidden />
 
       <div class="text-faint text-xs center mt-24" style="margin-bottom: 16px">
-        v0.9.0 · 数据仅保存在本机浏览器
+        v0.9.1 · 数据仅保存在本机浏览器
       </div>
     `;
 
@@ -288,13 +294,13 @@
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="weight-chart">
           <defs>
             <linearGradient id="wg-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#E85D24" stop-opacity="0.35"/>
-              <stop offset="100%" stop-color="#E85D24" stop-opacity="0"/>
+              <stop offset="0%" stop-color="#FF7A4D" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#FF7A4D" stop-opacity="0"/>
             </linearGradient>
           </defs>
           <path d="${fill}" fill="url(#wg-fill)"/>
-          <path d="${path}" fill="none" stroke="#E85D24" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-          ${entries.map((_, i) => `<circle cx="${xs[i].toFixed(1)}" cy="${ys[i].toFixed(1)}" r="2.5" fill="#E85D24"/>`).join('')}
+          <path d="${path}" fill="none" stroke="#FF7A4D" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          ${entries.map((_, i) => `<circle cx="${xs[i].toFixed(1)}" cy="${ys[i].toFixed(1)}" r="2.5" fill="#FF7A4D"/>`).join('')}
         </svg>
         <div class="row between text-xs text-faint mt-4">
           <span>${entries[0].date}</span>
@@ -354,6 +360,57 @@
           历史对比
         </button>
       </div>
+    `;
+  }
+
+  function renderActivityRings(stats) {
+    const trainPct = stats.weekTotal ? Math.min(1, stats.weekDone / stats.weekTotal) : 0;
+    const streakPct = Math.min(1, stats.streak / 7);     // 一周连击为满
+    const monthPct = Math.min(1, stats.thisMonth / 12);  // 12 次/月为满
+    // 三个同心 SVG 圆环
+    return `
+      <div class="rings-card">
+        <div class="rings-svg-wrap">
+          <svg viewBox="0 0 120 120" class="rings-svg">
+            <!-- 外圈:本周完成 -->
+            ${ring(54, trainPct, '#FF7A4D')}
+            <!-- 中圈:连击 -->
+            ${ring(40, streakPct, '#FFD60A')}
+            <!-- 内圈:本月 -->
+            ${ring(26, monthPct, '#32D74B')}
+          </svg>
+        </div>
+        <div class="rings-legend">
+          <div class="ring-stat">
+            <span class="ring-dot" style="background:#FF7A4D"></span>
+            <span class="ring-label">训练</span>
+            <span class="ring-val">${stats.weekDone}<span class="text-faint">/${stats.weekTotal||0}</span></span>
+          </div>
+          <div class="ring-stat">
+            <span class="ring-dot" style="background:#FFD60A"></span>
+            <span class="ring-label">连击</span>
+            <span class="ring-val">${stats.streak}<span class="text-faint"> 天</span></span>
+          </div>
+          <div class="ring-stat">
+            <span class="ring-dot" style="background:#32D74B"></span>
+            <span class="ring-label">本月</span>
+            <span class="ring-val">${stats.thisMonth}<span class="text-faint"> 次</span></span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function ring(r, pct, color) {
+    const C = 2 * Math.PI * r;
+    const offset = C * (1 - Math.min(1, Math.max(0, pct)));
+    return `
+      <circle cx="60" cy="60" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+      <circle cx="60" cy="60" r="${r}" fill="none" stroke="${color}" stroke-width="8"
+              stroke-linecap="round"
+              stroke-dasharray="${C.toFixed(2)}"
+              stroke-dashoffset="${offset.toFixed(2)}"
+              transform="rotate(-90 60 60)"/>
     `;
   }
 
@@ -474,12 +531,12 @@
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="volume-chart">
           <defs>
             <linearGradient id="vol-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.85"/>
-              <stop offset="100%" stop-color="#a78bfa" stop-opacity="0.35"/>
+              <stop offset="0%" stop-color="#FF7A4D" stop-opacity="0.45"/>
+              <stop offset="100%" stop-color="#FF7A4D" stop-opacity="0.18"/>
             </linearGradient>
             <linearGradient id="vol-grad-active" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#ff5b9c" stop-opacity="1"/>
-              <stop offset="100%" stop-color="#E85D24" stop-opacity="0.6"/>
+              <stop offset="0%" stop-color="#FF7A4D" stop-opacity="1"/>
+              <stop offset="100%" stop-color="#FF7A4D" stop-opacity="0.6"/>
             </linearGradient>
           </defs>
           ${bars}
