@@ -1784,6 +1784,20 @@ h3 { font-size: 16px; font-weight: 600; }
   color: var(--text);
   border-bottom-left-radius: 4px;
 }
+.chat-actions {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 10px;
+}
+.chat-action {
+  padding: 6px 12px;
+  background: rgba(232,93,36,0.12);
+  color: var(--accent);
+  border: 1px solid rgba(232,93,36,0.3);
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.chat-action:active { background: rgba(232,93,36,0.2); }
 .typing { display: inline-flex; gap: 4px; padding: 2px 0; }
 .typing span {
   width: 6px; height: 6px;

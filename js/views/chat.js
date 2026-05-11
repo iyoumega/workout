@@ -117,10 +117,28 @@
     if (m.role === 'user') {
       return `<div class="chat-msg user"><div class="bubble">${escapeHtml(m.content)}</div></div>`;
     }
+    const actionsHtml = detectActions(m.content);
     return `<div class="chat-msg assistant">
       <div class="chat-avatar"><svg viewBox="0 0 24 24"><use href="#i-sparkles"/></svg></div>
-      <div class="bubble">${escapeHtml(m.content).replace(/\n/g, '<br/>')}</div>
+      <div class="bubble">${escapeHtml(m.content).replace(/\n/g, '<br/>')}${actionsHtml}</div>
     </div>`;
+  }
+
+  // 识别 AI 回复里的意图,加快捷动作按钮
+  function detectActions(text) {
+    if (!text) return '';
+    const buttons = [];
+    if (/重新生成|换一份|新计划|生成新/.test(text)) {
+      buttons.push(`<button class="chat-action" data-chat-action="regen-ai">用 AI 生成新计划</button>`);
+    }
+    if (/休息|歇一天|休息日/.test(text) && /今天|改成|换成/.test(text)) {
+      buttons.push(`<button class="chat-action" data-chat-action="today-rest">把今天改为休息日</button>`);
+    }
+    if (/换个动作|换一个|替换/.test(text)) {
+      buttons.push(`<button class="chat-action" data-chat-action="go-today">回今日选动作换</button>`);
+    }
+    if (!buttons.length) return '';
+    return `<div class="chat-actions">${buttons.join('')}</div>`;
   }
 
   function escapeHtml(s) {
@@ -162,6 +180,45 @@
         updateSendState();
         input.focus();
       });
+    });
+
+    // 事件委托:聊天中的快捷动作按钮
+    document.getElementById('chat-list').addEventListener('click', async e => {
+      const btn = e.target.closest('[data-chat-action]');
+      if (!btn) return;
+      const act = btn.dataset.chatAction;
+      if (act === 'regen-ai') {
+        close();
+        await App.switchTab('plan');
+        setTimeout(() => document.getElementById('ai-regen')?.click(), 250);
+      } else if (act === 'today-rest') {
+        const ok = await UI.confirmModal({
+          title: '把今天改为休息日?',
+          text: '原本的训练动作会清空,可以稍后再生成或手动恢复。',
+          okLabel: '确认',
+        });
+        if (!ok) return;
+        try {
+          const plan = await Storage.getPlan();
+          const profile = await Storage.getProfile();
+          const todayKey = Planner.toDateKey(new Date());
+          const idx = plan.days.findIndex(d => d.date === todayKey);
+          if (idx === -1) { UI.toast('找不到今天', { type: 'error' }); return; }
+          plan.days[idx].type = 'rest';
+          plan.days[idx].title = Planner.TYPE_TITLES.rest;
+          plan.days[idx].exercises = [];
+          plan.days[idx].nutrition = Nutrition.calcMacros(profile, false);
+          await Storage.savePlan(plan);
+          UI.toast('今天已改为休息日', { type: 'success', icon: 'i-check' });
+          close();
+          App.switchTab('today');
+        } catch (err) {
+          UI.toast('操作失败:' + err.message, { type: 'error' });
+        }
+      } else if (act === 'go-today') {
+        close();
+        App.switchTab('today');
+      }
     });
   }
 

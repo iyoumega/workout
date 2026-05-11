@@ -234,10 +234,11 @@
       `;
     }).join('');
 
+    const dayCountText = computeJourneyDay(profile);
     root().innerHTML = `
       <div class="today-header">
         <div>
-          <div class="greeting">${UI.greeting()}</div>
+          <div class="greeting">${UI.greeting()}${dayCountText ? ` · ${dayCountText}` : ''}</div>
           <div class="today-date">${dateLabel}</div>
           <div class="today-title">${day.title}</div>
           <div class="today-badge">
@@ -268,6 +269,49 @@
     renderAITip(profile, todayKey);
     maybeOfferAdaptation(plan, profile, todayKey);
     maybeOfferJournal(todayKey);
+    maybeOfferWeightCheckin(todayKey);
+  }
+
+  // 每 7 天提一次体重(若上次记录超过 7 天)
+  async function maybeOfferWeightCheckin(todayKey) {
+    const settings = await Storage.getSettings();
+    if (settings.weightPromptDismissedFor === todayKey) return;
+    const weights = await Storage.getWeights();
+    const entries = (weights && weights.entries) || [];
+    if (entries.length === 0) return; // 没记过的不打扰
+    const last = entries[entries.length - 1];
+    const diffDays = (new Date(todayKey) - new Date(last.date)) / 86400000;
+    if (diffDays < 7) return;
+
+    const slot = document.getElementById('ai-tip-slot');
+    if (!slot) return;
+    const card = document.createElement('div');
+    card.className = 'card adapt-card';
+    card.innerHTML = `
+      <div class="row gap mb-8">
+        <svg viewBox="0 0 24 24" width="16" height="16" style="color:var(--accent); flex:0 0 16px"><use href="#i-flash"/></svg>
+        <strong>记一下体重?</strong>
+      </div>
+      <div class="text-sm text-dim mb-12">上次是 ${last.date},${Math.round(diffDays)} 天前。趋势数据会更准。</div>
+      <div class="row gap">
+        <button class="btn btn-sm btn-secondary flex-1" data-w="dismiss">下次再说</button>
+        <button class="btn btn-sm btn-primary flex-1" data-w="go">去记一下</button>
+      </div>
+    `;
+    slot.appendChild(card);
+    card.querySelector('[data-w="dismiss"]').addEventListener('click', async () => {
+      await Storage.saveSettings({ weightPromptDismissedFor: todayKey });
+      card.remove();
+    });
+    card.querySelector('[data-w="go"]').addEventListener('click', async () => {
+      await Storage.saveSettings({ weightPromptDismissedFor: todayKey });
+      card.remove();
+      await App.switchTab('me');
+      setTimeout(() => {
+        const addBtn = document.querySelector('[data-act="add-weight"]');
+        addBtn?.click();
+      }, 250);
+    });
   }
 
   // 周日提示生成本周日记
@@ -460,6 +504,16 @@
         btn.disabled = false;
       }
     });
+  }
+
+  function computeJourneyDay(profile) {
+    if (!profile || !profile.createdAt) return '';
+    const start = new Date(profile.createdAt);
+    if (isNaN(start.getTime())) return '';
+    const now = new Date();
+    const diffDays = Math.floor((now - start) / 86400000) + 1;
+    if (diffDays <= 0) return '';
+    return `第 ${diffDays} 天`;
   }
 
   function quoteBlock() {

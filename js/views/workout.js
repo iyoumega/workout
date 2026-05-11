@@ -823,8 +823,12 @@
 
         ${cooldownSection(day)}
 
-        <div class="onboarding-actions">
-          <button class="btn btn-primary btn-block" data-act="done">完成</button>
+        <div class="row gap mt-16">
+          <button class="btn btn-secondary flex-1" data-act="share">
+            <svg viewBox="0 0 24 24" width="16" height="16"><use href="#i-link"/></svg>
+            分享
+          </button>
+          <button class="btn btn-primary flex-1" data-act="done">完成</button>
         </div>
       </div>
     `;
@@ -835,11 +839,47 @@
       const newAch = (state.newAchievements || []).slice();
       hide();
       onFinish(finishedLog);
-      // 依次弹解锁动画
       newAch.forEach((a, i) => {
         setTimeout(() => UI.unlockAchievement(a), 600 + i * 3500);
       });
     });
+    root().querySelector('[data-act="share"]').addEventListener('click', () => shareWorkout(day, log));
+  }
+
+  async function shareWorkout(day, log) {
+    const totalSets = log.completedExercises.reduce((s, e) => s + (e.sets ? e.sets.length : 0), 0);
+    const totalReps = log.completedExercises.reduce((s, e) => s + (e.sets || []).reduce((a, b) => a + (b.reps || 0), 0), 0);
+    const totalVolume = log.completedExercises.reduce((s, e) => s + (e.sets || []).reduce((a, b) => a + (b.weight ? b.weight * b.reps : 0), 0), 0);
+    const dur = log.durationSec ? Math.round(log.durationSec / 60) : 0;
+    const exLines = log.completedExercises.map(e => {
+      const def = state.day.exercises.find(x => x.id === e.id);
+      const name = def ? def.nameZh : e.id;
+      const setsLine = (e.sets || []).map(s => s.weight ? `${s.weight}kg×${s.reps}` : `×${s.reps}`).join(' ');
+      return `  ${name}: ${setsLine}`;
+    }).join('\n');
+
+    const text = `今天完成 ${day.title}
+用时 ${dur} 分钟 · ${totalSets} 组 · ${totalReps} 次${totalVolume > 0 ? '\n总训练量 ' + Math.round(totalVolume) + 'kg' : ''}
+
+${exLines}
+
+— 训练计划 app`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ text, title: '今日训练' });
+        return;
+      } catch (e) {
+        // 用户取消或不支持
+      }
+    }
+    // 复制到剪贴板兜底
+    try {
+      await navigator.clipboard.writeText(text);
+      UI.toast('已复制到剪贴板', { type: 'success', icon: 'i-check' });
+    } catch (e) {
+      UI.toast('分享失败', { type: 'error' });
+    }
   }
 
   function confirmQuit() {
