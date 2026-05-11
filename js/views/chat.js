@@ -12,9 +12,14 @@
   function root() { return document.getElementById('chat-root'); }
 
   async function open() {
-    document.getElementById('tab-bar').classList.add('hidden');
-    document.getElementById('chat-fab')?.classList.add('hidden');
-    root().classList.remove('hidden');
+    const tabBar = document.getElementById('tab-bar');
+    if (tabBar) tabBar.classList.add('hidden');
+    const r = root();
+    if (!r) {
+      UI.toast('页面缺少 chat 容器,请下拉刷新', { type: 'error' });
+      return;
+    }
+    r.classList.remove('hidden');
     bindDelegation();
     await render();
     setTimeout(scrollToBottom, 60);
@@ -22,10 +27,12 @@
 
   function close() {
     const r = root();
-    r.classList.add('hidden');
-    r.innerHTML = '';
-    document.getElementById('tab-bar').classList.remove('hidden');
-    document.getElementById('chat-fab')?.classList.remove('hidden');
+    if (r) {
+      r.classList.add('hidden');
+      r.innerHTML = '';
+    }
+    const tabBar = document.getElementById('tab-bar');
+    if (tabBar) tabBar.classList.remove('hidden');
   }
 
   async function render() {

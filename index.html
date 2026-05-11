@@ -207,6 +207,10 @@
         <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-plan"/></svg>
         <span class="tab-label">计划</span>
       </button>
+      <button class="tab" data-tab="chat" aria-label="教练对话">
+        <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chat"/></svg>
+        <span class="tab-label">教练</span>
+      </button>
       <button class="tab" data-tab="me" aria-label="我的">
         <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-me"/></svg>
         <span class="tab-label">我的</span>
@@ -241,10 +245,6 @@
     <!-- 独立 loading 容器(避免和模态冲突)-->
     <div id="loading-root" class="loading-overlay hidden"></div>
 
-    <!-- 浮动聊天教练按钮 -->
-    <button id="chat-fab" class="chat-fab hidden" title="问问教练">
-      <svg viewBox="0 0 24 24" width="22" height="22"><use href="#i-chat"/></svg>
-    </button>
 
     <!-- Toast 容器 -->
     <div id="toast-root" class="toast-root"></div>

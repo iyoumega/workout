@@ -5,7 +5,7 @@
  *   - AI 接口(mega-deepseek.cylsport52330.workers.dev): 永远走网络,不缓存
  *   - 图片(B站等外链): 不拦截
  */
-const VERSION = 'v0.8.1';
+const VERSION = 'v0.9.0';
 const SHELL_CACHE = 'shell-' + VERSION;
 const SHELL_FILES = [
   './',

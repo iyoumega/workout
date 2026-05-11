@@ -110,24 +110,12 @@
   }
 
   async function showFirstLaunchTip() {
+    // FAB 已改为底栏 tab,首次提示直接 toast 一次即可
     const settings = await Storage.getSettings();
     if (settings.firstLaunchTipShown) return;
     await Storage.saveSettings({ firstLaunchTipShown: true });
-    const fab = document.getElementById('chat-fab');
-    if (!fab) return;
-    // 加临时光晕 + 提示泡
-    fab.classList.add('fab-tip-pulse');
-    const tip = document.createElement('div');
-    tip.className = 'fab-tip-bubble';
-    const coach = (settings.coachName || '教练');
-    tip.textContent = `有问题随时问 ${coach},点这里聊一聊`;
-    document.body.appendChild(tip);
-    requestAnimationFrame(() => tip.classList.add('show'));
-    setTimeout(() => {
-      tip.classList.remove('show');
-      setTimeout(() => tip.remove(), 300);
-      fab.classList.remove('fab-tip-pulse');
-    }, 5500);
+    const coach = settings.coachName || '教练';
+    UI.toast(`有问题随时问 ${coach},底部"教练"按钮`, { icon: 'i-chat', ttl: 3500 });
   }
 
   function hideSplash() {
@@ -142,7 +130,6 @@
   function startOnboarding(isEdit, preset, coachPreset) {
     document.getElementById('main-root').classList.add('hidden');
     document.getElementById('tab-bar').classList.add('hidden');
-    document.getElementById('chat-fab')?.classList.add('hidden');
 
     OnboardingView.start(async (profile, photos, coach) => {
       try {
@@ -190,7 +177,6 @@
   async function enterMain() {
     document.getElementById('main-root').classList.remove('hidden');
     document.getElementById('tab-bar').classList.remove('hidden');
-    document.getElementById('chat-fab')?.classList.remove('hidden');
     await switchTab(currentTab || 'today');
   }
 
@@ -219,21 +205,23 @@
     document.querySelectorAll('.tab[data-tab]').forEach(tab => {
       tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
-    document.getElementById('chat-fab')?.addEventListener('click', () => {
-      openChatSafely();
-    });
   }
 
   async function switchTab(name) {
+    // chat tab 直接打开聊天视图(不是 main 里的页面)
+    if (name === 'chat') {
+      openChatSafely();
+      return;
+    }
     currentTab = name;
     document.querySelectorAll('.tab[data-tab]').forEach(t => {
       t.classList.toggle('active', t.dataset.tab === name);
     });
     ['today','plan','me'].forEach(n => {
       const el = document.getElementById('view-' + n);
+      if (!el) return;
       el.classList.toggle('hidden', n !== name);
       if (n === name) {
-        // 重启进入动画
         el.classList.remove('view-anim');
         void el.offsetWidth;
         el.classList.add('view-anim');

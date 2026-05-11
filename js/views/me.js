@@ -189,7 +189,7 @@
       <input type="file" id="import-file" accept="application/json" hidden />
 
       <div class="text-faint text-xs center mt-24" style="margin-bottom: 16px">
-        v0.8.1 · 数据仅保存在本机浏览器
+        v0.9.0 · 数据仅保存在本机浏览器
       </div>
     `;
 
