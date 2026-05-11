@@ -66,16 +66,6 @@
     show();
     startDurationTicker();
     render();
-    // 进入训练时打个招呼(warmup 阶段会有自己的语音)
-    if (initialPhase === 'set') {
-      AudioCue.isVoiceEnabled().then(on => {
-        if (on) AudioCue.speak('开始训练', { rate: 1.0 });
-      });
-    } else if (initialPhase === 'warmup') {
-      AudioCue.isVoiceEnabled().then(on => {
-        if (on) AudioCue.speak('先热身一下', { rate: 1.0 });
-      });
-    }
   }
 
   function show() {
@@ -105,9 +95,6 @@
         if (wd) wd.textContent = state.warmupRemaining;
         if (state.warmupRemaining <= 0) {
           state.phase = 'set';
-          AudioCue.isVoiceEnabled().then(on => {
-            if (on) AudioCue.speak('开始训练', { rate: 1.0 });
-          });
           render();
         }
       }
@@ -117,12 +104,9 @@
         const td = document.getElementById('w-rest-display');
         if (td) td.textContent = Math.max(0, state.restRemaining);
         updateRestRing();
-        // 剩最后 3 秒时报数 + 短哔
+        // 剩最后 3 秒时短哔
         if (state.restRemaining === 3 || state.restRemaining === 2 || state.restRemaining === 1) {
           AudioCue.beep(700, 0.06);
-          AudioCue.isVoiceEnabled().then(on => {
-            if (on) AudioCue.speak(String(state.restRemaining), { rate: 1.2 });
-          });
         }
         if (state.restRemaining <= 0) {
           finishRest(true);
@@ -251,102 +235,121 @@
     const prefillReps = lastSet ? lastSet.reps : (state.lastReps != null ? state.lastReps : parseRepsLow(ex.reps));
     const weightHint = ex.suggestedWeight != null ? WeightRef.format(ex.suggestedWeight, ex.id) : null;
 
+    // 拼一行精简的目标说明:4 组 × 8-12 次 · 60kg · 休息 90s
+    const targetParts = [
+      `<strong>${totalSets}</strong> 组`,
+      `<strong>${ex.reps}</strong>${ex.timeBased ? '' : ' 次'}`,
+    ];
+    if (weightHint && !ex.timeBased) targetParts.push(`建议 <strong style="color:var(--accent)">${weightHint}</strong>`);
+    targetParts.push(`休息 <strong>${ex.restSec}s</strong>`);
+
     root().innerHTML = `
       <div class="w-header">
-        <button class="btn btn-icon" data-act="quit"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
-        <div class="w-progress-strip">
-          <div class="w-progress-bar" style="width:${overallPct}%"></div>
-        </div>
-        <div class="w-duration">
-          <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-clock"/></svg>
-          <span id="w-duration">${formatDuration(durationSec())}</span>
+        <button class="btn btn-icon" data-act="quit" aria-label="退出">
+          <svg viewBox="0 0 24 24"><use href="#i-x"/></svg>
+        </button>
+        <div class="w-header-center">
+          <div class="w-header-progress">
+            <div class="w-progress-strip"><div class="w-progress-bar" style="width:${overallPct}%"></div></div>
+          </div>
+          <div class="w-header-info">
+            <span>${exIdx + 1} / ${day.exercises.length}</span>
+            <span class="text-faint">·</span>
+            <span><svg viewBox="0 0 24 24" width="12" height="12" style="vertical-align:-2px"><use href="#i-clock"/></svg> <span id="w-duration">${formatDuration(durationSec())}</span></span>
+          </div>
         </div>
       </div>
 
       <div class="w-body">
-        <div class="w-meta-top">
-          <span>动作 ${exIdx + 1} / ${day.exercises.length}</span>
-          ${exIdx === 0 && setIdx === 0 ? `<span class="bpm-hint">${suggestBpm(day.type)}</span>` : ''}
+        <!-- 大字动作名 -->
+        <div class="w-ex-hero">
+          <div class="w-exercise-name">
+            ${ex.nameZh}
+            ${ex.isFocus ? '<span class="focus-badge">重点</span>' : ''}
+          </div>
+          <div class="muscle-tags mt-8">
+            ${ex.muscles.map(m => `<span class="muscle-tag">${m}</span>`).join('')}
+          </div>
         </div>
-        <div class="set-dots">
-          ${Array.from({length: totalSets}, (_, i) => {
-            const cls = i < setIdx ? 'done' : (i === setIdx ? 'current' : '');
-            return `<span class="set-dot ${cls}"></span>`;
-          }).join('')}
-          <span class="set-dot-label">第 ${setIdx + 1} / ${totalSets} 组</span>
-        </div>
-        <div class="w-exercise-name">
-          ${ex.nameZh}
-          ${ex.isFocus ? '<span class="focus-badge">重点</span>' : ''}
-        </div>
-        <div class="w-exercise-en">${ex.nameEn}</div>
-        <div class="muscle-tags mt-12">
-          ${ex.muscles.map(m => `<span class="muscle-tag">${m}</span>`).join('')}
-        </div>
-        ${renderActiveMuscle(ex)}
 
-        <div class="w-target">
-          <div class="w-target-row"><span>目标</span><strong>${ex.timeBased ? ex.reps : ex.reps + ' 次'}</strong></div>
-          <div class="w-target-row"><span>组间休息</span><strong>${ex.restSec}s</strong></div>
-          ${weightHint ? `<div class="w-target-row"><span>建议重量</span><strong style="color:var(--accent)">${weightHint}</strong></div>` : ''}
+        <!-- 一行目标说明 -->
+        <div class="w-target-line">
+          ${targetParts.join(' · ')}
         </div>
+
         ${progression && progression.message ? `
-          <div class="progression-hint mt-12">
+          <div class="progression-hint">
             <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-flash"/></svg>
             ${progression.message}
           </div>` : ''}
 
-        ${exDone.sets.length > 0 ? `
-          <div class="w-history-strip">
-            ${exDone.sets.map((s, i) => `
-              <div class="w-history-pill">
-                <span class="text-xs text-faint">#${i+1}</span>
-                ${s.weight ? `<strong>${s.weight}kg</strong>` : ''}
-                <span>×${s.reps}</span>
-              </div>
-            `).join('')}
+        <!-- 组进度,大字突出当前是第几组 -->
+        <div class="set-progress-block">
+          <div class="set-progress-title">
+            <span>第 <span class="set-num">${setIdx + 1}</span> 组</span>
+            <span class="text-dim text-sm">/ ${totalSets}</span>
           </div>
-        ` : ''}
+          <div class="set-dots">
+            ${Array.from({length: totalSets}, (_, i) => {
+              const cls = i < setIdx ? 'done' : (i === setIdx ? 'current' : '');
+              return `<span class="set-dot ${cls}"></span>`;
+            }).join('')}
+          </div>
+        </div>
 
+        <!-- 输入区:大输入框,清晰 label -->
         <div class="w-set-input">
           ${ex.timeBased ? '' : `
           <div class="w-set-input-block">
             <label>重量 (kg)</label>
-            <div class="num-stepper">
+            <div class="num-stepper big">
               <button class="num-btn" data-step="weight:-2.5"><svg viewBox="0 0 24 24"><use href="#i-minus"/></svg></button>
               <input id="w-weight" type="number" inputmode="decimal" step="2.5" min="0" value="${prefillWeight}" placeholder="可选" />
               <button class="num-btn" data-step="weight:+2.5"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
             </div>
           </div>`}
           <div class="w-set-input-block">
-            <label>${ex.timeBased ? '秒数' : '次数'}</label>
-            <div class="num-stepper">
+            <label>${ex.timeBased ? '完成秒数' : '完成次数'}</label>
+            <div class="num-stepper big">
               <button class="num-btn" data-step="reps:-${ex.timeBased ? 5 : 1}"><svg viewBox="0 0 24 24"><use href="#i-minus"/></svg></button>
               <input id="w-reps" type="number" inputmode="numeric" step="${ex.timeBased ? 5 : 1}" min="0" value="${ex.timeBased ? parseSeconds(ex.reps, prefillReps) : prefillReps}" />
               <button class="num-btn" data-step="reps:+${ex.timeBased ? 5 : 1}"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
             </div>
           </div>
         </div>
-        ${ex.timeBased ? '<div class="text-xs text-faint mt-8 center">秒数是该组持续时间</div>' : ''}
 
-        <div class="exercise-tips mt-16">
+        <!-- 已完成的组(本动作内) -->
+        ${exDone.sets.length > 0 ? `
+          <div class="set-history-row">
+            <span class="text-xs text-dim">已完成:</span>
+            ${exDone.sets.map((s, i) => `
+              <span class="set-history-pill">
+                ${s.weight ? `${s.weight}<small>kg</small>×` : ''}${s.reps}${ex.timeBased ? 's' : ''}
+              </span>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        <!-- 折叠的动作要点 -->
+        <details class="w-tips-details">
+          <summary>动作要点</summary>
           <ul>${ex.tips.map(t => `<li>${t}</li>`).join('')}</ul>
-        </div>
+        </details>
       </div>
 
-      <div class="w-action-secondary">
-        <button class="btn btn-sm btn-ghost" data-act="swap-ex">
-          <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-swap"/></svg>换一个
-        </button>
-        <button class="btn btn-sm btn-ghost ${AudioCue.isTicking()?'metro-on':''}" data-act="metronome">
-          <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-clock"/></svg>${AudioCue.isTicking()?'节拍 ON':'节拍'}
-        </button>
-        <button class="btn btn-sm btn-ghost" data-act="skip-ex">跳过</button>
-      </div>
-      <div class="w-actions">
-        <button class="btn btn-primary btn-block" data-act="finish-set">
+      <div class="w-bottom-bar">
+        <div class="w-secondary-row">
+          <button class="btn-mini" data-act="swap-ex">
+            <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-swap"/></svg>换一个
+          </button>
+          <button class="btn-mini ${AudioCue.isTicking()?'metro-on':''}" data-act="metronome">
+            <svg viewBox="0 0 24 24" width="14" height="14"><use href="#i-clock"/></svg>${AudioCue.isTicking()?'节拍中':'节拍器'}
+          </button>
+          <button class="btn-mini" data-act="skip-ex">跳过这动作</button>
+        </div>
+        <button class="btn btn-primary btn-block w-finish-btn" data-act="finish-set">
           <svg viewBox="0 0 24 24"><use href="#i-check"/></svg>
-          完成本组
+          完成本组,休息 ${ex.restSec}s
         </button>
       </div>
     `;
@@ -485,20 +488,6 @@
 
     try { if (navigator.vibrate) navigator.vibrate(20); } catch (e) {}
 
-    // 语音鼓励
-    AudioCue.isVoiceEnabled().then(on => {
-      if (!on) return;
-      const remaining = ex.sets - exLog.sets.length;
-      let line;
-      if (remaining === 0) {
-        line = `${ex.nameZh}完成,准备下一个动作`;
-      } else if (remaining === 1) {
-        line = '还剩最后一组,坚持';
-      } else {
-        line = `第${exLog.sets.length}组完成,休息`;
-      }
-      AudioCue.speak(line, { rate: 1.0 });
-    });
 
     // 下一组 / 下一动作 / 总结
     state.setIdx++;
@@ -617,9 +606,6 @@
         if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         beep();
       } catch (e) {}
-      AudioCue.isVoiceEnabled().then(on => {
-        if (on) AudioCue.speak('开始', { rate: 1.0 });
-      });
     }
     state.phase = 'set';
     render();
@@ -687,9 +673,6 @@
     if (weight > bestWeight || (weight === bestWeight && reps > bestRepsAtBest)) {
       try { if (navigator.vibrate) navigator.vibrate([60,30,60,30,150]); } catch(e){}
       AudioCue.beep(1200, 0.18);
-      AudioCue.isVoiceEnabled().then(on => {
-        if (on) AudioCue.speak(`新纪录,${ex.nameZh} ${weight}公斤`, { rate: 1.0 });
-      });
       UI.toast(`🏆 新 PR · ${ex.nameZh} ${weight}kg×${reps}`, { type: 'success', icon: 'i-trophy', ttl: 3500 });
       // 在 root 上撒少量彩纸
       UI.spawnConfettiAt(root(), 20);
